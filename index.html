@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kryo — Language Reference and Guide</title>
+<meta name="description" content="Complete documentation for the Kryo programming language: syntax, types, memory domains, capacity types, contracts, CLI reference, diagnostics and limitations.">
+<style>
+:root{
+  --bg:#ffffff; --bg-soft:#f6f7f9; --bg-code:#f4f5f7; --fg:#1b1f24; --fg-soft:#5a6472;
+  --line:#e3e6ea; --accent:#1f6feb; --accent-soft:#e8f0fe;
+  --ok:#116329; --ok-bg:#dafbe1; --warn:#7a4d00; --warn-bg:#fff4d6;
+  --bad:#8b1a1a; --bad-bg:#ffe3e3; --plan:#4a3b8b; --plan-bg:#ece9fb;
+  --kw:#8250df; --ty:#0a6e6e; --str:#0a7d33; --num:#b3541e; --cmt:#6e7781;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --sidebar:280px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0d1117; --bg-soft:#161b22; --bg-code:#161b22; --fg:#e6edf3; --fg-soft:#9aa4b2;
+    --line:#30363d; --accent:#58a6ff; --accent-soft:#132033;
+    --ok:#3fb950; --ok-bg:#0f2a17; --warn:#d29922; --warn-bg:#2a2311;
+    --bad:#f85149; --bad-bg:#2d1416; --plan:#a78bfa; --plan-bg:#1e1a33;
+    --kw:#c297ff; --ty:#56d4d4; --str:#7ee787; --num:#ffa657; --cmt:#8b949e;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:1rem}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans);
+  font-size:16px; line-height:1.65; -webkit-text-size-adjust:100%;
+}
+.skip{position:absolute;left:-999px;top:0;background:var(--accent);color:#fff;padding:.6rem 1rem;z-index:100}
+.skip:focus{left:1rem;top:1rem}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* ---------- layout ---------- */
+.layout{display:flex;min-height:100vh}
+#sidebar{
+  width:var(--sidebar); flex:0 0 var(--sidebar); position:sticky; top:0; align-self:flex-start;
+  height:100vh; overflow-y:auto; border-right:1px solid var(--line); background:var(--bg-soft);
+  padding:1rem .9rem 3rem;
+}
+main{flex:1 1 auto;min-width:0;padding:2rem clamp(1rem,4vw,4rem) 6rem;max-width:1080px}
+.brand{display:flex;align-items:center;gap:.6rem;margin:.2rem 0 1rem}
+.brand-mark{
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:700;
+  background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;font-family:var(--mono);font-size:18px;
+}
+.brand h1{font-size:1.05rem;margin:0;letter-spacing:.02em}
+.brand small{display:block;color:var(--fg-soft);font-weight:400;font-size:.75rem;letter-spacing:0}
+nav ul{list-style:none;margin:0;padding:0}
+nav .group{margin:.85rem 0 .3rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fg-soft);font-weight:600}
+nav a{display:block;padding:.24rem .5rem;border-radius:6px;color:var(--fg);font-size:.9rem;border-left:2px solid transparent}
+nav a:hover{background:var(--accent-soft);text-decoration:none}
+nav a.active{background:var(--accent-soft);border-left-color:var(--accent);font-weight:600;color:var(--accent)}
+#searchWrap{position:sticky;top:0;background:var(--bg-soft);padding:.2rem 0 .6rem;z-index:5}
+#search{
+  width:100%;padding:.5rem .65rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);
+  color:var(--fg);font:inherit;font-size:.88rem;
+}
+#search::placeholder{color:var(--fg-soft)}
+#results{margin-top:.5rem;max-height:38vh;overflow-y:auto;font-size:.85rem}
+#results a{display:block;padding:.3rem .45rem;border-radius:6px;color:var(--fg)}
+#results a:hover,#results a:focus{background:var(--accent-soft);text-decoration:none}
+#results .hint{color:var(--fg-soft);padding:.3rem .45rem;font-size:.8rem}
+#menuToggle{display:none}
+
+/* ---------- content ---------- */
+h1,h2,h3,h4{line-height:1.25;letter-spacing:-.01em}
+main > section{margin-bottom:3rem;scroll-margin-top:1rem}
+h2{font-size:1.7rem;margin:0 0 .8rem;padding-bottom:.4rem;border-bottom:1px solid var(--line)}
+h3{font-size:1.22rem;margin:1.9rem 0 .6rem}
+h4{font-size:1rem;margin:1.4rem 0 .4rem;color:var(--fg)}
+p,ul,ol{margin:.6rem 0}
+li{margin:.25rem 0}
+.lede{font-size:1.06rem;color:var(--fg-soft)}
+code{font-family:var(--mono);font-size:.87em;background:var(--bg-code);padding:.12em .35em;border-radius:4px;border:1px solid var(--line)}
+pre{
+  position:relative;background:var(--bg-code);border:1px solid var(--line);border-radius:10px;
+  padding:1.9rem 1rem .9rem;overflow-x:auto;margin:.9rem 0;font-size:.86rem;line-height:1.5;
+}
+pre code{background:none;border:0;padding:0;font-size:inherit;white-space:pre}
+pre .lang{
+  position:absolute;top:.45rem;left:.8rem;font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fg-soft);
+}
+.copy{
+  position:absolute;top:.35rem;right:.5rem;font:inherit;font-size:.72rem;padding:.2rem .5rem;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg-soft);cursor:pointer;
+}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+.copy.done{color:var(--ok);border-color:var(--ok)}
+.c{color:var(--cmt);font-style:italic}
+.s{color:var(--str)}
+.n{color:var(--num)}
+.k{color:var(--kw);font-weight:600}
+.t{color:var(--ty)}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.9rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;vertical-align:top}
+th{background:var(--bg-soft);font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:color-mix(in srgb,var(--bg-soft) 55%,transparent)}
+.badge{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:.1rem .45rem;border-radius:999px;border:1px solid transparent;vertical-align:middle}
+.badge.ok{color:var(--ok);background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.badge.warn{color:var(--warn);background:var(--warn-bg);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.badge.bad{color:var(--bad);background:var(--bad-bg);border-color:color-mix(in srgb,var(--bad) 35%,transparent)}
+.badge.plan{color:var(--plan);background:var(--plan-bg);border-color:color-mix(in srgb,var(--plan) 35%,transparent)}
+.callout{border-left:4px solid var(--accent);background:var(--bg-soft);padding:.75rem 1rem;border-radius:0 8px 8px 0;margin:1rem 0}
+.callout.warn{border-left-color:var(--warn)}
+.callout.bad{border-left-color:var(--bad)}
+.callout p:first-child{margin-top:0}.callout p:last-child{margin-bottom:0}
+.callout .title{font-weight:700;display:block;margin-bottom:.2rem}
+.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin:1rem 0}
+.card{border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;background:var(--bg-soft)}
+.card h4{margin:.1rem 0 .3rem}
+.card p{margin:.2rem 0;font-size:.9rem;color:var(--fg-soft)}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:.3rem 1rem;font-size:.9rem;margin:.8rem 0}
+.kv dt{font-weight:600}.kv dd{margin:0;color:var(--fg-soft)}
+footer{border-top:1px solid var(--line);margin-top:3rem;padding-top:1rem;color:var(--fg-soft);font-size:.85rem}
+.top{position:fixed;right:1rem;bottom:1rem;background:var(--bg-soft);border:1px solid var(--line);
+  border-radius:999px;width:42px;height:42px;display:grid;place-items:center;cursor:pointer;color:var(--fg)}
+.top[hidden]{display:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:980px){
+  .layout{display:block}
+  #sidebar{
+    position:fixed;inset:0 auto 0 0;width:min(86vw,320px);transform:translateX(-102%);
+    transition:transform .18s ease;z-index:40;box-shadow:0 0 40px rgba(0,0,0,.35);
+  }
+  body.nav-open #sidebar{transform:none}
+  main{padding-top:4.2rem}
+  #menuToggle{
+    display:inline-flex;align-items:center;gap:.4rem;position:fixed;top:.7rem;left:.7rem;z-index:50;
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.45rem .7rem;
+    font:inherit;font-size:.85rem;color:var(--fg);cursor:pointer;
+  }
+  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:39;display:none}
+  body.nav-open #scrim{display:block}
+}
+@media print{
+  #sidebar,#menuToggle,.top,.copy{display:none}
+  main{max-width:none;padding:0}
+  pre{white-space:pre-wrap}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main-content">Skip to content</a>
+<button id="menuToggle" aria-controls="sidebar" aria-expanded="false">☰ Contents</button>
+<div id="scrim" hidden></div>
+
+<div class="layout">
+<aside id="sidebar" aria-label="Documentation navigation">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">K</span>
+    <h1>Kryo<small>language reference</small></h1>
+  </div>
+
+  <div id="searchWrap">
+    <label for="search" class="visually-hidden" style="position:absolute;left:-999px">Search the documentation</label>
+    <input id="search" type="search" placeholder="Search docs…  ( / )" autocomplete="off" aria-describedby="searchHint">
+    <p id="searchHint" style="position:absolute;left:-999px">Type to filter sections. Press Enter to jump to the first match.</p>
+    <div id="results" role="listbox" aria-label="Search results" hidden></div>
+  </div>
+
+  <nav>
+    <div class="group">Getting started</div>
+    <ul>
+      <li><a href="#introduction">1. Introduction</a></li>
+      <li><a href="#installation">2. Installation</a></li>
+      <li><a href="#quickstart">3. Quick start</a></li>
+      <li><a href="#status">4. Implementation status</a></li>
+    </ul>
+    <div class="group">Language</div>
+    <ul>
+      <li><a href="#syntax">5. Syntax reference</a></li>
+      <li><a href="#operators">6. Operators</a></li>
+      <li><a href="#types">7. Type system</a></li>
+      <li><a href="#memory">8. Memory and safety</a></li>
+      <li><a href="#functions">9. Functions and generics</a></li>
+      <li><a href="#data">10. Data structures</a></li>
+      <li><a href="#modules">11. Modules</a></li>
+    </ul>
+    <div class="group">Library and tooling</div>
+    <ul>
+      <li><a href="#stdlib">12. Built-in library</a></li>
+      <li><a href="#cli">13. Command-line reference</a></li>
+      <li><a href="#diagnostics">14. Diagnostics</a></li>
+      <li><a href="#project">15. Project layout</a></li>
+    </ul>
+    <div class="group">Reference</div>
+    <ul>
+      <li><a href="#libraries">16. Libraries</a></li>
+      <li><a href="#examples">17. Example programs</a></li>
+      <li><a href="#testing">18. Testing</a></li>
+      <li><a href="#internals">19. Compiler internals</a></li>
+      <li><a href="#limitations">20. Limitations</a></li>
+      <li><a href="#faq">21. FAQ</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<main id="main-content">
+<section id="introduction">
+<h2>1. Introduction</h2>
+<p class="lede">Kryo is a systems programming language whose design borrows the explicitness of C, the
+safety vocabulary of Rust, and the small-surface simplicity of Zig — and then adds two features of its own:
+<strong>explicit memory domains</strong> and <strong>capacity-aware types</strong>.</p>
+
+<div class="grid">
+  <div class="card"><h4>Explicit memory domains</h4><p>Stack, Heap, Persistent, GPU, Shared, Distributed and Transfer are distinct types, so where a value lives is visible in its type.</p></div>
+  <div class="card"><h4>Capacity-aware types</h4><p><code>Bounded&lt;T, MIN, MAX&gt;</code> and <code>BoundedVec&lt;T, C&gt;</code> carry their limits in the type, so overflow is rejected rather than suffered.</p></div>
+  <div class="card"><h4>Contracts</h4><p><code>requires</code> and <code>ensures</code> state a function's pre- and postconditions next to its signature, and are checked.</p></div>
+  <div class="card"><h4>Resource state machines</h4><p>A <code>File&lt;Open&gt;</code> cannot be read after it has become a <code>File&lt;Closed&gt;</code>.</p></div>
+</div>
+
+<h3>A minimal program</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    println("Hello, Kryo!");
+    return 0;
+}</code></pre>
+<p>Save it as <code>hello.kyo</code> and run <code>kryo run hello.kyo</code>. The output is:</p>
+<pre data-lang="text"><code>Hello, Kryo!
+
+✓ Execution complete
+Result: 0</code></pre>
+
+<div class="callout">
+<span class="title">Two execution engines, two levels of completeness</span>
+<p><code>kryo run</code> interprets the program and supports most of the language.
+<code>kryo build</code> goes through LLVM and currently compiles only a small subset — see
+<a href="#status">Implementation status</a> and <a href="#limitations">Limitations</a> before relying on it.
+This documentation marks every section with its real status.</p>
+</div>
+
+<h3>Design principles, as implemented</h3>
+<dl class="kv">
+  <dt>Explicit is better than implicit</dt><dd>No integer/float coercion: write <code>x as f64</code>. No hidden allocation: the domain is in the type.</dd>
+  <dt>Fail where the mistake is</dt><dd>Undefined names are rejected by name resolution, not at runtime; out-of-range <code>Bounded</code> literals are rejected by the type checker.</dd>
+  <dt>Small surface</dt><dd>One keyword per concept, no macros, no operator overloading, no implicit constructors.</dd>
+  <dt>Readable diagnostics</dt><dd>Every error carries a code, a source excerpt, a caret, and — where one is reliable — a correction.</dd>
+</dl>
+
+<p>The compiler is written in Rust and lives in this repository; the interpreter is the reference
+implementation of the semantics.</p>
+</section>
+
+<section id="installation">
+<h2>2. Installation and setup</h2>
+
+<h3>Requirements</h3>
+<table>
+<thead><tr><th>Requirement</th><th>Needed for</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Rust 1.70+ (tested with 1.98)</td><td>Building the compiler</td><td><code>rustup</code> or a working <code>cargo</code></td></tr>
+<tr><td>LLVM/clang at <code>D:\LLVM\bin\clang.exe</code></td><td><code>kryo build</code>, <code>kryo build-opt</code> only</td><td>The path is currently hardcoded; the interpreter does not need it</td></tr>
+<tr><td>Windows, Linux or macOS</td><td>Everything</td><td>Generated objects target <code>x86_64-pc-windows-msvc</code> or the freestanding <code>x86_64-pc-none-elf</code></td></tr>
+</tbody>
+</table>
+
+<h3>Build the compiler</h3>
+<pre data-lang="shell"><code># from the repository root
+cargo build --release --workspace</code></pre>
+<p>The binary is written to <code>target/release/kryo.exe</code> on Windows and
+<code>target/release/kryo</code> elsewhere.</p>
+
+<div class="callout warn">
+<span class="title">Use <code>--workspace</code></span>
+<p>The root <code>Cargo.toml</code> declares a package without any targets, so a plain
+<code>cargo build --release</code> finishes successfully and produces <strong>no</strong> binary.
+Build with <code>--workspace</code> (or <code>-p kryo-cli</code>).</p>
+</div>
+
+<h3>Verify the installation</h3>
+<pre data-lang="shell"><code>./target/release/kryo --help
+./target/release/kryo explain E0004</code></pre>
+
+<h3>First run</h3>
+<pre data-lang="shell"><code>mkdir hello &amp;&amp; cd hello
+cat &gt; hello.kyo &lt;&lt;'EOF'
+fn main() -&gt; i32 {
+    println("Hello, Kryo!");
+    return 0;
+}
+EOF
+../target/release/kryo run hello.kyo</code></pre>
+
+<h3>Environment and configuration</h3>
+<ul>
+<li>Kryo reads no environment variables of its own.</li>
+<li><code>kryo build</code> invokes <code>D:\LLVM\bin\clang.exe</code> (and <code>lld-link.exe</code> as a fallback). If that path does not exist, <code>build</code> reports a toolchain failure — <code>run</code> is unaffected.</li>
+<li>Package metadata lives in <code>Kryo.toml</code> in the project directory (see <a href="#project">Project layout</a>).</li>
+</ul>
+
+<h3>Common installation problems</h3>
+<table>
+<thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td><code>kryo: command not found</code></td><td>Not on <code>PATH</code></td><td>Call <code>target/release/kryo</code> directly, or copy it somewhere on <code>PATH</code></td></tr>
+<tr><td>Build “succeeds” but no binary appears</td><td>Missing <code>--workspace</code></td><td><code>cargo build --release --workspace</code></td></tr>
+<tr><td><code>Failed to run clang.exe</code></td><td>LLVM not at the hardcoded path</td><td>Use <code>kryo run</code>, or install LLVM at <code>D:\LLVM</code></td></tr>
+<tr><td>Old binary behaves differently from a fresh build</td><td>Stale artifact</td><td><code>cargo build --release --workspace</code> before testing</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="quickstart">
+<h2>3. Quick start tutorial</h2>
+<p>This walkthrough builds a small program that uses functions, a struct, a collection and a contract.
+Every step is executable as written.</p>
+
+<h3>Step 1 — a program that returns a value</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let total: i32 = 40 + 2;
+    println("total = {}", total);
+    return total;
+}</code></pre>
+<pre data-lang="shell"><code>kryo run step1.kyo</code></pre>
+<pre data-lang="text"><code>total = 42
+
+✓ Execution complete
+Result: 42</code></pre>
+<p><code>main</code> returns <code>i32</code>; the interpreter prints it after <code>Result:</code>.</p>
+
+<h3>Step 2 — a function</h3>
+<pre data-lang="kyro"><code>fn average(a: i32, b: i32) -&gt; i32 {
+    return (a + b) / 2;
+}
+
+fn main() -&gt; i32 {
+    println("average = {}", average(80, 90));
+    return 0;
+}</code></pre>
+<p><code>fn</code> declares a function; parameters are <code>name: Type</code>; the arrow gives the return
+type. Calls are <code>name(arg, …)</code>.</p>
+
+<h3>Step 3 — a struct with a method</h3>
+<pre data-lang="kyro"><code>struct Counter {
+    value: i32,
+}
+
+impl Counter {
+    fn new(start: i32) -&gt; Counter {
+        return Counter { value: start };
+    }
+    fn next(self) -&gt; i32 {
+        return self.value + 1;
+    }
+}
+
+fn main() -&gt; i32 {
+    let c: Counter = Counter::new(41);
+    println("next = {}", c.next());
+    return 0;
+}</code></pre>
+<div class="callout">
+<span class="title">Struct literals need every field</span>
+<p><code>Counter { value: start }</code> names the field explicitly — Kryo has no field shorthand and no
+default field values.</p>
+</div>
+
+<h3>Step 4 — a collection</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let mut scores = Vec::new();
+    scores.push(70);
+    scores.push(95);
+    scores.push(88);
+    println("count = {}", scores.len());
+    return 0;
+}</code></pre>
+
+<h3>Step 5 — a contract</h3>
+<pre data-lang="kyro"><code>fn percent(part: i32, whole: i32) -&gt; i32
+    requires whole &gt; 0
+    ensures result &gt;= 0
+{
+    return part * 100 / whole;
+}
+
+fn main() -&gt; i32 {
+    println("{}%", percent(3, 4));
+    return 0;
+}</code></pre>
+<p>Output: <code>75%</code>. Calling <code>percent(3, 0)</code> fails at runtime with
+<code>error[E0010]</code>.</p>
+
+<h3>Step 6 — check, then run</h3>
+<pre data-lang="shell"><code>kryo check main.kyo     # front end only: no execution, no artifacts
+kryo run main.kyo       # compile-in-memory and execute
+kryo explain E0010      # what the contract error means</code></pre>
+</section>
+
+<section id="status">
+<h2>4. Implementation status</h2>
+<p>Kryo is a research implementation. The repository is the source of truth; this table says what you can
+actually rely on today.</p>
+
+<table>
+<thead><tr><th>Area</th><th>Status</th><th>Detail</th></tr></thead>
+<tbody>
+<tr><td>Lexer, parser, resolver, type checker, borrow checker</td><td><span class="badge ok">works</span></td><td>Structured errors with source spans and codes</td></tr>
+<tr><td>Interpreter (<code>kryo run</code>, <code>kryo benchmark</code>)</td><td><span class="badge ok">works</span></td><td>Most of the language; the reference semantics</td></tr>
+<tr><td>Memory domains</td><td><span class="badge warn">interpreter only</span></td><td>Domain handles with get/write/…; the native backend does not model them</td></tr>
+<tr><td>Capacity types</td><td><span class="badge ok">works</span></td><td><code>Bounded</code> ranges and <code>BoundedVec</code> capacity are enforced</td></tr>
+<tr><td>Resource state machines</td><td><span class="badge ok">works</span></td><td>States checked by the type checker; use-after-close, double-close and unclosed-resource leaks are all reported</td></tr>
+<tr><td>Contracts</td><td><span class="badge ok">works</span></td><td><code>requires</code>/<code>ensures</code> checked at run time</td></tr>
+<tr><td><code>kryo build</code> (LLVM)</td><td><span class="badge ok">works</span></td><td>Compiles arithmetic, formatting, calls, recursion, loops, arrays, <code>const</code>/<code>static</code>, enums and <code>match</code>. Array indexing is bounds-checked and traps out of range, matching the interpreter. Anything it cannot lower raises <code>E0006</code>.</td></tr>
+<tr><td><code>kryo fmt</code></td><td><span class="badge warn">safe</span></td><td>Prints the AST in canonical form and re-parses the result before replacing the file; refuses (leaving it untouched) for constructs it cannot print. Comments are still dropped.</td></tr>
+<tr><td><code>kryo build-opt</code></td><td><span class="badge ok">works</span></td><td>Same pipeline as <code>build</code> with <code>-O0..-O3</code> handed to clang; produces a real optimised binary</td></tr>
+<tr><td><code>kryo docs</code></td><td><span class="badge ok">works</span></td><td>Captures <code>///</code> documentation and emits Markdown or a converted, escaped HTML document</td></tr>
+<tr><td><code>kryo test</code></td><td><span class="badge ok">works</span></td><td><code>--test-type</code> selects <code>unit</code> / <code>integration</code> / <code>property</code>; a failing Kryo test exits non-zero</td></tr>
+<tr><td>LSP server</td><td><span class="badge ok">works</span></td><td>Completion, hover, document symbols, go-to-definition and find-references (references now carry real spans)</td></tr>
+<tr><td>Traits with generics, trait objects</td><td><span class="badge ok">works</span></td><td>Trait methods dispatch on struct and primitive receivers, and <code>&amp;dyn Trait</code> accepts any implementing type through a parameter</td></tr>
+<tr><td>Top-level <code>const</code>/<code>static</code></td><td><span class="badge ok">works</span></td><td>Parsed, resolved, executed; the native backend substitutes literal initialisers</td></tr>
+<tr><td>Floating-point intrinsics</td><td><span class="badge ok">works</span></td><td><code>trunc fract exp ln log2 log10 hypot copysign signum to_degrees to_radians is_nan is_finite is_infinite</code></td></tr>
+<tr><td>SIMD, threads</td><td><span class="badge plan">planned</span></td><td>No implementation</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="syntax">
+<h2>5. Syntax reference</h2>
+
+<h3>Source files and comments</h3>
+<p>Kryo source files use the <code>.kyo</code> extension and are UTF-8. A byte-order mark is skipped.</p>
+<pre data-lang="kyro"><code>// A line comment.
+
+/* A block comment. */
+
+fn main() -&gt; i32 {
+    return 0;   // trailing comment
+}</code></pre>
+<p><code>///</code> is a documentation comment: <code>kryo docs</code> captures it and attaches it to the declaration that follows.</p>
+
+<h3>Identifiers</h3>
+<p>Identifiers start with a letter or <code>_</code> and continue with letters, digits or <code>_</code>.
+Unicode letters are accepted.</p>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let total: i32 = 1;
+    let _unused: i32 = 2;
+    let nombre: i32 = 3;
+    return total + _unused + nombre - 5;
+}</code></pre>
+
+<h3>Keywords</h3>
+<table>
+<thead><tr><th>Category</th><th>Reserved words</th></tr></thead>
+<tbody>
+<tr><td>Declarations</td><td><code>fn let mut struct enum trait impl type mod use pub const static</code></td></tr>
+<tr><td>Control flow</td><td><code>if else while for in return break continue match case</code></td></tr>
+<tr><td>Types and generics</td><td><code>where as extern dyn self Self ref super crate</code></td></tr>
+<tr><td>Modifiers</td><td><code>unsafe async await requires ensures newtype</code></td></tr>
+<tr><td>Literals</td><td><code>true false</code></td></tr>
+</tbody>
+</table>
+<p>Domain and resource names (<code>Stack</code>, <code>Heap</code>, <code>Persistent</code>,
+<code>GPU</code>, <code>Shared</code>, <code>Distributed</code>, <code>Transfer</code>,
+<code>File</code>, <code>Socket</code>, …) are ordinary identifiers that the compiler recognises in
+specific positions, not keywords.</p>
+
+<h3>Literals</h3>
+<table>
+<thead><tr><th>Literal</th><th>Syntax</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td>Decimal integer</td><td><code>[0-9]+</code></td><td><code>42</code></td></tr>
+<tr><td>Hexadecimal</td><td><code>0x…</code></td><td><code>0xFF</code> = 255</td></tr>
+<tr><td>Binary</td><td><code>0b…</code></td><td><code>0b1010</code> = 10</td></tr>
+<tr><td>Octal</td><td><code>0o…</code></td><td><code>0o777</code> = 511</td></tr>
+<tr><td>Float</td><td><code>d.d</code>, optional exponent</td><td><code>3.5</code>, <code>1.0e9</code></td></tr>
+<tr><td>String</td><td><code>"…"</code></td><td><code>"hello"</code></td></tr>
+<tr><td>Character</td><td><code>'c'</code></td><td><code>'A'</code></td></tr>
+<tr><td>Boolean</td><td><code>true</code> / <code>false</code></td><td><code>true</code></td></tr>
+</tbody>
+</table>
+<p>String escapes: <code>\n</code>, <code>\t</code>, <code>\r</code>, <code>\\</code>, <code>\"</code>,
+<code>\'</code>, <code>\0</code>.</p>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let tabbed: String = "a\tb";
+    let quoted: String = "she said \"hi\"";
+    println("{}|{}", tabbed, quoted);
+    return 0;
+}</code></pre>
+
+<h3>Variables and mutability</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let fixed: i32 = 10;        // immutable
+    let mut counter: i32 = 0;   // reassignable
+    counter = counter + fixed;  // only `mut` bindings accept assignment
+    let shadowed: i32 = counter;
+    let shadowed: i32 = shadowed + 1;   // a new binding, not an assignment
+    return shadowed;
+}</code></pre>
+<p>Type annotations are optional: <code>let x = 1;</code> infers <code>i32</code>.</p>
+
+<h3>Statements and blocks</h3>
+<ul>
+<li>A block <code>{ … }</code> contains statements; its final expression is the block's value.</li>
+<li>Statements end with <code>;</code>. The final expression of a block may omit it.</li>
+<li><code>let</code> also accepts an omitted <code>;</code>.</li>
+<li>A bare <code>{ … }</code> block is a statement and introduces a scope.</li>
+</ul>
+
+<h3>Conditionals</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let n: i32 = 7;
+    if n &gt; 10 {
+        println("large");
+    } else {
+        if n &gt; 5 {
+            println("medium");
+        } else {
+            println("small");
+        }
+    }
+    return 0;
+}</code></pre>
+<div class="callout">
+<span class="title"><code>else if</code> chains of any length</span>
+<p><code>if … else if … else if … else</code> nests to any depth. The formatter prints them as nested
+<code>else { if … }</code> blocks, which means the same thing.</p>
+</div>
+
+<h3>Loops</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let mut i: i32 = 0;
+    let mut total: i32 = 0;
+    while i &lt; 5 {
+        total = total + i;
+        i = i + 1;
+    }
+
+    let values: [i32; 3] = [10, 20, 30];
+    for v in values {
+        total = total + v;
+    }
+
+    for n in range(0, 3) {
+        total = total + n;
+    }
+    return total;   // 10 + 60 + 3 = 73
+}</code></pre>
+<div class="callout">
+<span class="title"><code>break</code> and <code>continue</code> work</span>
+<p><code>break</code> leaves the innermost loop and <code>continue</code> starts the next iteration, in
+<code>while</code> and in <code>for</code> alike. Both engines agree: the interpreter implements them and
+<code>kryo build</code> emits the corresponding branches.</p>
+</div>
+
+<h3>Functions</h3>
+<pre data-lang="kyro"><code>fn add(a: i32, b: i32) -&gt; i32 {
+    return a + b;
+}
+
+fn no_result(message: String) {
+    println("{}", message);
+}
+
+fn main() -&gt; i32 {
+    no_result("side effect");
+    return add(1, 2);
+}</code></pre>
+
+<h3>Structs, enums, impls, traits</h3>
+<pre data-lang="kyro"><code>struct Point {
+    x: i32,
+    y: i32,
+}
+
+enum Direction {
+    North,
+    South,
+}
+
+trait Magnitude {
+    fn magnitude(self) -&gt; i32;
+}
+
+impl Magnitude for Point {
+    fn magnitude(self) -&gt; i32 {
+        return self.x + self.y;
+    }
+}
+
+fn main() -&gt; i32 {
+    let p: Point = Point { x: 3, y: 4 };
+    let d: Direction = Direction::North;
+    match d {
+        Direction::North =&gt; return p.magnitude(),
+        Direction::South =&gt; return 0,
+    }
+}</code></pre>
+
+<h3>Pattern matching</h3>
+<pre data-lang="kyro"><code>fn classify(n: i32) -&gt; i32 {
+    match n {
+        0 =&gt; return 100,
+        x =&gt; return x * 10,
+    }
+}
+
+fn main() -&gt; i32 {
+    match Option::Some(5) {
+        Option::Some(value) =&gt; println("got {}", value),
+        Option::None =&gt; println("nothing"),
+    }
+    return classify(3);
+}</code></pre>
+<p>Patterns: literals, identifiers (binding), <code>_</code>, tuples, enum variants with payloads,
+<code>Option</code>/<code>Result</code>, and optional guards (<code>pattern if condition =&gt; …</code>).</p>
+
+<h3>Unsafe blocks and FFI</h3>
+<pre data-lang="kyro"><code>extern "C" {
+    fn puts(message: *const u8) -&gt; i32;
+}
+
+fn main() -&gt; i32 {
+    unsafe {
+        puts("called through the C ABI");
+    }
+    return 0;
+}</code></pre>
+<p>Calling an <code>extern "C"</code> function outside <code>unsafe</code> is rejected with
+<code>E0012</code>. The interpreter does not perform foreign calls: it returns the zero value of the
+declared return type.</p>
+
+<h3>Attributes</h3>
+<pre data-lang="kyro"><code>#[repr(C)]
+struct Packet {
+    id: u32,
+    size: u16,
+}
+
+fn main() -&gt; i32 {
+    return 0;
+}</code></pre>
+<p><code>#[repr(C)]</code> is parsed and recorded; the interpreter does not use it.</p>
+</section>
+
+<section id="operators">
+<h2>6. Operators and precedence</h2>
+<p>Precedence follows C, which keeps expressions predictable for systems programmers. Operator
+associativity is left-to-right except for assignment, which is parsed as a low-precedence binary
+operator.</p>
+
+<table>
+<thead><tr><th>Level</th><th>Operators</th><th>Associativity</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>1 (lowest)</td><td><code>=  +=  -=  *=  /=  %=  &amp;=  |=  ^=  &lt;&lt;=  &gt;&gt;=</code></td><td>left</td><td>assigned value</td></tr>
+<tr><td>2</td><td><code>||</code></td><td>left</td><td><code>bool</code></td></tr>
+<tr><td>3</td><td><code>&amp;&amp;</code></td><td>left</td><td><code>bool</code></td></tr>
+<tr><td>4</td><td><code>|</code></td><td>left</td><td>integer</td></tr>
+<tr><td>5</td><td><code>^</code></td><td>left</td><td>integer</td></tr>
+<tr><td>6</td><td><code>&amp;</code></td><td>left</td><td>integer</td></tr>
+<tr><td>7</td><td><code>==  !=</code></td><td>left</td><td><code>bool</code></td></tr>
+<tr><td>8</td><td><code>&lt;  &lt;=  &gt;  &gt;=</code></td><td>left</td><td><code>bool</code></td></tr>
+<tr><td>9</td><td><code>&lt;&lt;  &gt;&gt;</code></td><td>left</td><td>integer</td></tr>
+<tr><td>10</td><td><code>+  -</code></td><td>left</td><td>numeric / <code>String</code> for <code>+</code></td></tr>
+<tr><td>11</td><td><code>*  /  %</code></td><td>left</td><td>numeric</td></tr>
+<tr><td>12</td><td><code>as</code> (postfix cast), unary <code>-  !  ~  *  &amp;  &amp;mut</code></td><td>—</td><td>see below</td></tr>
+<tr><td>13 (highest)</td><td><code>.</code> field/method, <code>[ ]</code> index, <code>( )</code> call, <code>::</code> path</td><td>left</td><td>—</td></tr>
+</tbody>
+</table>
+
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    // * binds tighter than +
+    println("{}", 1 + 2 * 3);        // 7
+    println("{}", (1 + 2) * 3);      // 9
+
+    // left associativity
+    println("{}", 10 - 3 - 2);       // 5
+    println("{}", 100 / 10 / 5);     // 2
+
+    // comparison binds tighter than &&
+    if 1 &lt; 2 &amp;&amp; 2 &lt; 3 {
+        println("both");
+    }
+
+    // bitwise
+    println("{} {} {}", 12 &amp; 10, 12 | 10, 12 ^ 10);   // 8 14 6
+    println("{} {} {}", 12 &lt;&lt; 2, 12 &gt;&gt; 2, ~12);      // 48 3 -13
+    return 0;
+}</code></pre>
+
+<h3>Arithmetic rules</h3>
+<ul>
+<li>Integers are 64-bit signed values internally; the declared type governs checking and display.</li>
+<li>Integer <code>/</code> truncates toward zero. Division or remainder by zero is a checked runtime
+error (<code>E0009</code>) — not undefined behaviour.</li>
+<li>Shift amounts must be in <code>0..64</code>; anything else is a runtime error.</li>
+<li>There is no implicit integer↔float conversion. Use <code>as</code>.</li>
+<li><code>+</code> also concatenates two <code>String</code> values.</li>
+</ul>
+
+<h3>Assignment</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let mut x: i32 = 1;
+    x = x + 41;          // plain assignment: supported
+    let mut data: [i32; 2] = [1, 2];
+    data[0] = 7;         // index assignment: supported
+    return x + data[0];  // 49
+}</code></pre>
+<div class="callout">
+<span class="title">Compound assignment works</span>
+<p><code>+=  -=  *=  /=  %=  &amp;=  |=  ^=  &lt;&lt;=  &gt;&gt;=</code> are all accepted; the parser lowers
+<code>x op= y</code> to <code>x = x op y</code>, so the type checker, the interpreter and the native backend
+all see the same form.</p>
+</div>
+</section>
+
+<section id="types">
+<h2>7. Type system</h2>
+<p>Kryo is statically typed. Annotations on bindings, parameters and return types are checked; a binding
+without an annotation takes the type of its initialiser.</p>
+
+<h3>Primitive types</h3>
+<table>
+<thead><tr><th>Type</th><th>Description</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>bool</code></td><td>Boolean</td><td><code>let ok: bool = true;</code></td></tr>
+<tr><td><code>i8 i16 i32 i64 i128</code></td><td>Signed integers</td><td><code>let n: i32 = 42;</code></td></tr>
+<tr><td><code>u8 u16 u32 u64 u128</code></td><td>Unsigned integers</td><td><code>let b: u8 = 255;</code></td></tr>
+<tr><td><code>usize isize</code></td><td>Pointer-sized integers</td><td><code>let n: usize = 8;</code></td></tr>
+<tr><td><code>f32 f64</code></td><td>Floating point</td><td><code>let x: f64 = 1.5;</code></td></tr>
+<tr><td><code>char</code></td><td>Unicode scalar value</td><td><code>let c: char = 'A';</code></td></tr>
+<tr><td><code>()</code></td><td>Unit / no value</td><td><code>fn log() { }</code></td></tr>
+</tbody>
+</table>
+<p>The integer types participate in checking (a literal is checked against the declared type), but the
+interpreter stores integers as 64-bit values and prints them without a suffix.</p>
+
+<h3>Compound types</h3>
+<table>
+<thead><tr><th>Type</th><th>Meaning</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>[T; N]</code></td><td>Fixed-size array of <code>N</code> elements</td><td><code>let a: [i32; 3] = [1, 2, 3];</code></td></tr>
+<tr><td><code>(A, B)</code></td><td>Tuple</td><td><code>let t: (i32, i32) = (1, 2);</code></td></tr>
+<tr><td><code>&amp;T</code>, <code>&amp;mut T</code></td><td>Reference</td><td><code>let r: &amp;i32 = &amp;x;</code></td></tr>
+<tr><td><code>*const T</code>, <code>*mut T</code></td><td>Raw pointer</td><td><code>let p: *mut u8 = …;</code></td></tr>
+<tr><td><code>fn(A) -&gt; B</code></td><td>Function type</td><td>parsed; used for FFI callbacks</td></tr>
+<tr><td><code>String</code></td><td>Owned UTF-8 text</td><td><code>let s: String = "hi";</code></td></tr>
+<tr><td><code>Vec&lt;T&gt;</code></td><td>Growable sequence</td><td><code>let v = Vec::new();</code></td></tr>
+<tr><td><code>HashMap</code></td><td>Key/value map</td><td><code>let m = HashMap::new();</code></td></tr>
+<tr><td><code>Option&lt;T&gt;</code></td><td><code>Some(T)</code> or <code>None</code></td><td><code>let o = Option::Some(1);</code></td></tr>
+<tr><td><code>Result&lt;T, E&gt;</code></td><td><code>Ok(T)</code> or <code>Err(E)</code></td><td><code>let r = Result::Ok(1);</code></td></tr>
+</tbody>
+</table>
+
+<h3>Capacity-aware types</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    // The range is part of the type; a literal outside [0, 100] is a compile error.
+    let percent: Bounded&lt;i32, 0, 100&gt; = 90;
+
+    // The capacity is part of the type; pushing past it is an error.
+    let mut buffer: BoundedVec&lt;i32, 4&gt; = BoundedVec::new(4);
+    buffer = buffer.push(1);
+    buffer = buffer.push(2);
+
+    println("{} / {}", percent, buffer.capacity());
+    return 0;
+}</code></pre>
+<table>
+<thead><tr><th>Guarantee</th><th>When it is enforced</th></tr></thead>
+<tbody>
+<tr><td><code>Bounded</code> literal inside its range</td><td>Compile time (<code>E0003</code>)</td></tr>
+<tr><td><code>Bounded</code> value produced by computation</td><td>Runtime, when the let-binding is executed (<code>E0003</code>)</td></tr>
+<tr><td><code>BoundedVec</code> element count ≤ capacity</td><td>Runtime, on construction and on <code>push</code> (<code>E0009</code>)</td></tr>
+</tbody>
+</table>
+<div class="callout warn">
+<span class="title"><code>push</code> returns a new vector</span>
+<p><code>v.push(x);</code> as a statement is discarded; write <code>v = v.push(x);</code> for
+<code>BoundedVec</code>. (<code>Vec</code> and arrays update in place.)</p>
+</div>
+
+<h3>Memory domain types</h3>
+<table>
+<thead><tr><th>Type</th><th>Lifetime model</th><th>Runtime representation</th></tr></thead>
+<tbody>
+<tr><td><code>Stack&lt;T&gt;</code></td><td>Scope of the enclosing block</td><td>Transparent: the value itself</td></tr>
+<tr><td><code>Heap&lt;T&gt;</code></td><td>Explicit ownership; released by drop or <code>Domain::transfer</code></td><td>Handle with <code>get</code>/<code>write</code></td></tr>
+<tr><td><code>Persistent&lt;T&gt;</code></td><td>File-backed; survives the process</td><td>Handle plus the file path</td></tr>
+<tr><td><code>GPU&lt;T&gt;</code></td><td>Device memory, explicit transfer</td><td>Handle</td></tr>
+<tr><td><code>Shared&lt;T&gt;</code></td><td>Named region shared between processes</td><td>Handle plus region name</td></tr>
+<tr><td><code>Distributed&lt;T&gt;</code></td><td>Network-reachable</td><td>Handle plus address</td></tr>
+<tr><td><code>Transfer&lt;T&gt;</code></td><td>Host-visible staging buffer</td><td>Handle</td></tr>
+</tbody>
+</table>
+
+<h3>Resource types</h3>
+<p>A resource carries a state in its type: <code>File&lt;Open&gt;</code>, <code>File&lt;Closed&gt;</code>,
+<code>Mutex&lt;Locked&gt;</code>, <code>Socket&lt;Connected&gt;</code>.</p>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let f = File::open("data.bin");   // File&lt;Open&gt;
+    let d = File::read(f);            // i32; f is still Open
+    let c = File::close(f);           // File&lt;Closed&gt;
+    return d;
+}</code></pre>
+<p>Reading <code>c</code> afterwards is <code>E0011</code>, and closing it twice is too.</p>
+
+<h3>Type inference and conversion</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let inferred = 7;             // i32
+    let f: f64 = inferred as f64; // explicit conversion
+    let back: i32 = f as i32;     // truncates toward zero
+    let flag: bool = true;
+    let n: i32 = flag as i32;     // 1
+    return back + n;
+}</code></pre>
+<p><code>as</code> converts between numeric types and between <code>bool</code> and integers. There is no
+implicit conversion: mixing <code>i32</code> and <code>f64</code> in arithmetic is an error, not a silent
+promotion.</p>
+
+<h3>Invalid combinations</h3>
+<table>
+<thead><tr><th>Expression</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>1 + 2.5</code></td><td><span class="badge bad">error</span> <code>E0003</code> at compile time: integer and float operands do not mix</td></tr>
+<tr><td><code>"a" + 1</code></td><td><span class="badge bad">error</span>: <code>+</code> concatenates two <code>String</code>s only</td></tr>
+<tr><td><code>if x</code> where <code>x: i32</code></td><td><span class="badge bad">error</span> <code>E0003</code>: the condition must be <code>bool</code></td></tr>
+<tr><td><code>let x: i32 = "s";</code></td><td><span class="badge bad">error</span> <code>E0003</code> with both types shown</td></tr>
+<tr><td><code>data[3]</code> on <code>[i32; 3]</code></td><td><span class="badge bad">error</span> <code>E0003</code> (constant index) or <code>E0009</code> (computed index)</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="memory">
+<h2>8. Memory and safety</h2>
+<p>Kryo's safety story is deliberately narrow: it gives you explicit domains, checked indices, checked
+arithmetic failure modes, resource states, and a move checker. It does not attempt Rust's lifetime
+analysis.</p>
+
+<h3>Where a value lives is in its type</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let value: i32 = 10;
+
+    let on_stack = Stack::alloc(value);   // transparent: on_stack is an i32
+    let on_heap = Heap::alloc(value);     // a handle
+    on_heap.write(on_stack + 1);
+
+    println("stack {}, heap {}", on_stack, on_heap.get());
+    return 0;
+}</code></pre>
+
+<h3>Domain operations</h3>
+<table>
+<thead><tr><th>Constructor</th><th>Produces</th><th>Payload</th></tr></thead>
+<tbody>
+<tr><td><code>Stack::alloc(v)</code> / <code>Stack::new(v)</code></td><td><code>T</code> (transparent)</td><td><code>v</code></td></tr>
+<tr><td><code>Heap::alloc(v)</code> / <code>Heap::new(v)</code></td><td><code>Heap&lt;T&gt;</code></td><td><code>v</code></td></tr>
+<tr><td><code>GPU::alloc(v)</code> / <code>GPU::allocate(v)</code></td><td><code>GPU&lt;T&gt;</code></td><td><code>v</code></td></tr>
+<tr><td><code>Shared::alloc(v)</code> / <code>Shared::open(name)</code></td><td><code>Shared&lt;T&gt;</code></td><td><code>v</code>, or <code>0</code> for <code>open</code></td></tr>
+<tr><td><code>Distributed::alloc(v)</code> / <code>Distributed::connect(addr)</code></td><td><code>Distributed&lt;T&gt;</code></td><td><code>v</code>, or <code>0</code></td></tr>
+<tr><td><code>Transfer::new(v)</code> / <code>::alloc</code> / <code>::stage</code></td><td><code>Transfer&lt;T&gt;</code></td><td><code>v</code></td></tr>
+<tr><td><code>Persistent::map(path, v)</code></td><td><code>Persistent&lt;T&gt;</code></td><td>writes <code>v</code> to <code>path</code></td></tr>
+<tr><td><code>Persistent::open(path)</code></td><td><code>Persistent&lt;T&gt;</code></td><td>reads <code>path</code>, or <code>0</code> if absent</td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Method</th><th>Applies to</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>.get()</code> / <code>.read()</code> / <code>.load()</code></td><td>all handles</td><td>reads the payload</td></tr>
+<tr><td><code>.write(v)</code> / <code>.store(v)</code></td><td>all handles</td><td>replaces the payload</td></tr>
+<tr><td><code>.increment()</code></td><td><code>Heap</code>, <code>GPU</code>, <code>Shared</code></td><td>payload + 1</td></tr>
+<tr><td><code>.address()</code> / <code>.name()</code></td><td><code>Shared</code>, <code>Persistent</code>, <code>Distributed</code></td><td>the region/file/address name</td></tr>
+<tr><td><code>Domain::transfer(v)</code>, <code>Domain::copy(v)</code></td><td>any value</td><td>unwraps the domain, yielding the payload</td></tr>
+</tbody>
+</table>
+
+<h3>Persistence</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let counter = Persistent::map("counter.txt", 41);
+    counter.write(counter.get() + 1);
+    println("counter = {}", counter.get());   // 42, and "42" is on disk
+    return 0;
+}</code></pre>
+
+<h3>Ownership and moves</h3>
+<p>The borrow checker tracks ownership per binding. Non-<code>Copy</code> values (such as
+<code>String</code>) are moved on assignment, and using a moved binding is <code>E0005</code>. Primitive
+values copy.</p>
+<table>
+<thead><tr><th>Rule</th><th>Enforced by</th></tr></thead>
+<tbody>
+<tr><td>A moved value cannot be used</td><td>Borrow checker (<code>E0005</code> at run of the check)</td></tr>
+<tr><td>Two mutable borrows of the same binding</td><td>Borrow checker</td></tr>
+<tr><td>An active resource must be released</td><td>Borrow checker (leak detection)</td></tr>
+<tr><td>Lifetimes, non-lexical borrows, <code>'a</code> annotations</td><td><span class="badge bad">not implemented</span></td></tr>
+</tbody>
+</table>
+
+<h3>What is checked at run time</h3>
+<table>
+<thead><tr><th>Check</th><th>Error</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Array / slice / <code>BoundedVec</code> index</td><td><code>E0009</code></td><td>Constant indices are also rejected at compile time</td></tr>
+<tr><td>Integer division / remainder by zero</td><td><code>E0009</code></td><td>Never undefined behaviour</td></tr>
+<tr><td>Shift amount ≥ 64</td><td><code>E0009</code></td><td></td></tr>
+<tr><td><code>BoundedVec</code> capacity</td><td><code>E0009</code></td><td></td></tr>
+<tr><td><code>Bounded</code> range of a computed value</td><td><code>E0003</code></td><td>Reported when the binding is executed</td></tr>
+<tr><td>Contracts (<code>requires</code>/<code>ensures</code>)</td><td><code>E0010</code></td><td></td></tr>
+<tr><td>Resource state</td><td><code>E0011</code></td><td>Also checked statically from annotations</td></tr>
+<tr><td><code>Option::unwrap</code> on <code>None</code></td><td><code>E0009</code></td><td></td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<span class="title">Unsafe is a boundary marker, not an escape hatch</span>
+<p><code>unsafe { … }</code> is required around <code>extern "C"</code> calls. It does not disable the
+bounds checks above.</p>
+</div>
+</section>
+
+<section id="functions">
+<h2>9. Functions and generics</h2>
+
+<h3>Declaration and calls</h3>
+<pre data-lang="kyro"><code>fn add(a: i32, b: i32) -&gt; i32 {
+    return a + b;
+}
+
+fn greet(name: String) {
+    println("hello, {}", name);
+}
+
+fn main() -&gt; i32 {
+    greet("world");
+    return add(2, 3);
+}</code></pre>
+<p>Arguments are positional and count-checked: passing one argument to a two-parameter function is
+<code>E0003</code> with the expected arity in the message. There are no default arguments and no
+overloading.</p>
+
+<h3>Recursion</h3>
+<pre data-lang="kyro"><code>fn fib(n: i32) -&gt; i32 {
+    if n &lt; 2 {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn main() -&gt; i32 {
+    return fib(10);   // 55
+}</code></pre>
+<p>The interpreter runs on a dedicated 256 MiB stack, so recursion up to roughly ten thousand nested
+calls works before the host stack is exhausted. Treat that as an implementation limit, not a language
+guarantee.</p>
+
+<h3>Generics</h3>
+<pre data-lang="kyro"><code>fn identity&lt;T&gt;(value: T) -&gt; T {
+    return value;
+}
+
+struct Container&lt;T&gt; {
+    value: T,
+}
+
+// A parameterised `impl<T> Container<T>` is not supported yet; a plain
+// `impl Container` covers every instantiation.
+impl Container {
+    fn get(self) -&gt; i32 {
+        return self.value;
+    }
+}
+
+fn main() -&gt; i32 {
+    let n: i32 = identity(42);
+    let c: Container&lt;i32&gt; = Container { value: 7 };
+    return n + c.get();
+}</code></pre>
+<p>Associated functions and methods live in <code>impl Container { … }</code>. A parameterised header (<code>impl&lt;T&gt; Container&lt;T&gt;</code>) is accepted and covers every instantiation.</p>
+<p>Generic parameters can carry trait bounds (<code>fn f&lt;T: Describable&gt;(x: T)</code>); bound
+violations are reported as <code>E0003</code>. Monomorphisation is performed during type checking.</p>
+
+<h3>Traits</h3>
+<pre data-lang="kyro"><code>trait Describable {
+    fn describe(self) -&gt; i32;
+}
+
+struct Sensor {
+    reading: i32,
+}
+
+impl Describable for Sensor {
+    fn describe(self) -&gt; i32 {
+        return self.reading;
+    }
+}
+
+fn main() -&gt; i32 {
+    let s: Sensor = Sensor { reading: 42 };
+    return s.describe();
+}</code></pre>
+<p>Traits can also be implemented for primitive types, in which case the method is available on values of
+that type (<code>impl Doubler for i32 { fn doubled(self) -&gt; i32 { … } }</code>). Trait objects work: a <code>&amp;dyn Trait</code> parameter accepts a reference to any implementing type and dispatches on the runtime type.</p>
+
+<h3>Contracts</h3>
+<pre data-lang="kyro"><code>fn clamp_value(value: i32, low: i32, high: i32) -&gt; i32
+    requires low &lt;= high
+    ensures result &gt;= low
+    ensures result &lt;= high
+{
+    if value &lt; low {
+        return low;
+    }
+    if value &gt; high {
+        return high;
+    }
+    return value;
+}
+
+fn main() -&gt; i32 {
+    return clamp_value(15, 0, 10);   // 10
+}</code></pre>
+<table>
+<thead><tr><th>Clause</th><th>Checked</th><th>Error</th></tr></thead>
+<tbody>
+<tr><td><code>requires condition</code></td><td>On function entry</td><td><code>E0010</code></td></tr>
+<tr><td><code>ensures condition</code></td><td>On return; <code>result</code> is bound to the value</td><td><code>E0010</code></td></tr>
+</tbody>
+</table>
+
+<h3>Async functions</h3>
+<pre data-lang="kyro"><code>async fn compute() -&gt; i32 {
+    return 41;
+}
+
+fn main() -&gt; i32 {
+    let value = compute().await;
+    return value + 1;
+}</code></pre>
+<p>An <code>async fn</code> returns a future; <code>.await</code> resolves it immediately in the
+interpreter. <code>async { … }</code> blocks are also supported. There is no scheduler and no concurrency:
+the future is eager.</p>
+</section>
+
+<section id="data">
+<h2>10. Data structures</h2>
+
+<h3>Arrays</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let mut data: [i32; 4] = [10, 20, 30, 40];
+    data[1] = 21;
+    let filled: [i32; 3] = [7; 3];   // [7, 7, 7]
+    return data[0] + data[1] + filled[0];
+}</code></pre>
+<p>Fixed size is part of the type. Constant out-of-range indices are rejected by the type checker.</p>
+
+<h3>Tuples</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let pair = (40, 2);
+    match pair {
+        (a, b) =&gt; return a + b,
+    }
+}</code></pre>
+<p>Tuples are constructed, destructured, indexed with <code>t.0</code> / <code>t.1</code>, and compared with <code>==</code>.</p>
+
+<h3>Vectors</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let mut v = Vec::new();
+    v.push(1);
+    v.push(2);
+    println("len = {}", v.len());
+    for value in v {
+        println("{}", value);
+    }
+    return 0;
+}</code></pre>
+
+<h3>Bounded vectors</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let mut buffer: BoundedVec&lt;i32, 4&gt; = BoundedVec::new(4);
+    buffer = buffer.push(1);
+    buffer = buffer.push(2);
+    buffer = buffer.push(3);
+    println("{}/{}", buffer.len(), buffer.capacity());
+    return 0;
+}</code></pre>
+<table>
+<thead><tr><th>Operation</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>BoundedVec::new(cap)</code></td><td>empty vector with capacity <code>cap</code></td></tr>
+<tr><td><code>v.push(x)</code></td><td>new vector, or <code>E0009</code> if full</td></tr>
+<tr><td><code>v.len()</code>, <code>v.capacity()</code></td><td>element count, capacity</td></tr>
+<tr><td><code>v[i]</code>, <code>v[i] = x</code></td><td>bounds-checked element access</td></tr>
+</tbody>
+</table>
+
+<h3>Maps</h3>
+<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+    let m = HashMap::new();
+    m.insert("a", 1);
+    m.insert("b", 2);
+    m.insert("a", 3);            // overwrites
+    println("size = {}", m.len());        // 2
+    println("has a: {}", m.contains_key("a"));
+    match m.get("b") {
+        Option::Some(v) =&gt; return v,
+        Option::None =&gt; return 0,
+    }
+}</code></pre>
+<p>Keys and values are values of any type the interpreter can compare; <code>get</code> returns an
+<code>Option</code>. <code>remove(key)</code> returns the map without that key.</p>
+
+<h3>Structs</h3>
+<pre data-lang="kyro"><code>struct Config {
+    retries: i32,
+    verbose: bool,
+}
+
+fn main() -&gt; i32 {
+    let mut c: Config = Config { retries: 3, verbose: true };
+    c.retries = c.retries + 1;
+    if c.verbose {
+        println("retries = {}", c.retries);
+    }
+    return 0;
+}</code></pre>
+<p>Field access and whole-field assignment are supported. A struct value is copied on assignment; there
+are no constructors beyond associated functions in <code>impl</code>.</p>
+
+<h3>Enums and pattern matching</h3>
+<pre data-lang="kyro"><code>enum Status {
+    Idle,
+    Running,
+    Failed,
+}
+
+fn label(s: Status) -&gt; i32 {
+    match s {
+        Status::Idle =&gt; return 0,
+        Status::Running =&gt; return 1,
+        Status::Failed =&gt; return 2,
+    }
+}
+
+fn main() -&gt; i32 {
+    return label(Status::Running);
+}</code></pre>
+<p>Variants may carry a payload (<code>Circle(i32)</code>) and be destructured in <code>match</code>.
+A payload received through a parameter can be matched and used directly; the binding gets the payload type.</p>
+</section>
+
+<section id="modules">
+<h2>11. Modules</h2>
+<pre data-lang="kyro"><code>mod geometry {
+    pub fn area(width: i32, height: i32) -&gt; i32 {
+        return width * height;
+    }
+
+    pub mod scale {
+        pub fn doubled(value: i32) -&gt; i32 {
+            return value * 2;
+        }
+    }
+}
+
+fn main() -&gt; i32 {
+    let a: i32 = geometry::area(3, 4);
+    let b: i32 = geometry::scale::doubled(a);
+    println("{} {}", a, b);
+    return 0;
+}</code></pre>
+<table>
+<thead><tr><th>Item</th><th>Syntax</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Module</td><td><code>mod name { … }</code></td><td><span class="badge ok">works</span>, nestable</td></tr>
+<tr><td>Visibility</td><td><code>pub fn</code>, <code>pub struct</code>, <code>pub enum</code>, <code>pub trait</code></td><td><span class="badge warn">parsed</span>; visibility is not enforced between modules today</td></tr>
+<tr><td>Qualified call</td><td><code>a::b::f(args)</code></td><td><span class="badge ok">works</span> to any depth</td></tr>
+<tr><td>Import</td><td><code>use path;</code> / <code>use path as alias;</code></td><td><span class="badge warn">parsed</span>; alias resolution is partial — prefer full paths</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<span class="title">One file per compilation</span>
+<p><code>mod name { … }</code> declares a module inline. <code>mod name;</code> loads <code>name.kyo</code> from the directory of the file that declares it, recursively, so a program can be split across files. A non-<code>pub</code> function inside a module is not reachable through a qualified path from outside — calling it is <code>E0004</code>.</p>
+<pre><code>// util.kyo
+pub fn double(n: i32) -&gt; i32 { return n * 2; }
+
+// main.kyo
+mod util;
+fn main() -&gt; i32 { return util::double(21); }   // 42</code></pre>
+</div>
+</section>
+<section id="stdlib">
+<h2>12. Built-in library</h2>
+<p>Kryo has no separate standard-library crate: these functions and constructors are implemented by the
+interpreter and recognised by the name resolver. They are available from any file without an
+<code>use</code>.</p>
+<h3>Output</h3>
+<table>
+<thead><tr><th>Signature</th><th>Behaviour</th></tr></thead>
+<tbody>
+<tr><td><code>print(format: String, …)</code></td><td>Writes without a trailing newline</td></tr>
+<tr><td><code>println(format: String, …)</code></td><td>Writes followed by a newline</td></tr>
+<tr><td><code>println()</code></td><td>Writes a bare newline</td></tr>
+</tbody>
+</table>
+<p>The first argument is a format string. Each <code>{}</code> is replaced, left to right, by the
+corresponding extra argument; <code>{{</code> and <code>}}</code> produce literal braces. There is no
+other specifier syntax — <code>{:?}</code> and <code>{0}</code> are printed verbatim.</p>
+<pre><code>fn main() -&gt; i32 {
+    let name: String = "Ana";
+    let age: i32 = 25;
+    println("name = {}, age = {}", name, age);
+    println("literal braces: {{ }}");
+    print("no newline… ");
+    println("done");
+    return 0;
+}</code></pre>
+<h3>Input</h3>
+<table>
+<thead><tr><th>Signature</th><th>Behaviour</th></tr></thead>
+<tbody>
+<tr><td><code>read_line() -&gt; String</code></td><td>Reads one line; strips the trailing newline</td></tr>
+<tr><td><code>read_int() -&gt; i32</code></td><td>Reads a line; returns 0 if it is not an integer</td></tr>
+<tr><td><code>read_float() -&gt; f64</code></td><td>Reads a line; returns 0.0 if it is not a number</td></tr>
+</tbody>
+</table>
+<h3>Math</h3>
+<table>
+<thead><tr><th>Signature</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>sqrt(f64)</code>, <code>abs(i32 | f64)</code>, <code>pow(f64, f64)</code></td><td>square root, absolute value (same type), exponentiation</td></tr>
+<tr><td><code>min(a, b)</code>, <code>max(a, b)</code>, <code>clamp(value, low, high)</code></td><td>both integer or both float; clamp limits to the range</td></tr>
+<tr><td><code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>fract</code></td><td>rounding in <code>f64</code></td></tr>
+<tr><td><code>sin</code>, <code>cos</code>, <code>tan</code>, <code>asin</code>, <code>acos</code>, <code>atan</code>, <code>atan2</code></td><td>trigonometry in radians</td></tr>
+<tr><td><code>exp</code>, <code>ln</code>, <code>log2</code>, <code>log10</code>, <code>hypot(x, y)</code>, <code>copysign(x, y)</code>, <code>signum</code></td><td>exponential, logarithmic, vector and sign helpers</td></tr>
+<tr><td><code>to_degrees</code>, <code>to_radians</code>, <code>lerp(a, b, t)</code></td><td>angle conversion and linear interpolation</td></tr>
+<tr><td><code>is_nan</code>, <code>is_finite</code>, <code>is_infinite</code></td><td>float predicates, typed <code>bool</code></td></tr>
+</tbody>
+</table>
+<p>These are also reachable through the <code>Math</code> namespace: <code>Math::min</code>,
+<code>Math::max</code>, <code>Math::abs</code>. Methods <code>.sqrt()</code> and <code>.abs()</code> exist
+on float values.</p>
+<h3>Collections and optionals</h3>
+<table>
+<thead><tr><th>Signature</th><th>Behaviour</th></tr></thead>
+<tbody>
+<tr><td><code>Vec::new()</code>, <code>HashMap::new()</code>, <code>BoundedVec::new(cap)</code></td><td>empty collection</td></tr>
+<tr><td><code>range(start, end)</code></td><td>iterable <code>start..end</code> (exclusive)</td></tr>
+<tr><td><code>Option::Some(v)</code>, <code>Option::None</code></td><td>optional value</td></tr>
+<tr><td><code>Result::Ok(v)</code>, <code>Result::Err(e)</code></td><td>fallible value</td></tr>
+<tr><td><code>String::from_int(v)</code></td><td>decimal rendering</td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Method</th><th>Receiver</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>.len()</code></td><td>Vec, array, BoundedVec, String, HashMap</td><td><code>i32</code> (characters for strings)</td></tr>
+<tr><td><code>.capacity()</code></td><td>BoundedVec</td><td><code>i32</code></td></tr>
+<tr><td><code>.push(v)</code></td><td>Vec, BoundedVec, array value</td><td>the updated collection</td></tr>
+<tr><td><code>.get(key)</code> / <code>.get(index)</code></td><td>HashMap / sequence</td><td><code>Option&lt;V&gt;</code></td></tr>
+<tr><td><code>.insert(k, v)</code>, <code>.remove(k)</code></td><td>HashMap</td><td>the updated map</td></tr>
+<tr><td><code>.contains(x)</code></td><td>String, Vec, array, BoundedVec</td><td><code>bool</code></td></tr>
+<tr><td><code>.contains_key(k)</code></td><td>HashMap</td><td><code>bool</code></td></tr>
+<tr><td><code>.is_empty()</code></td><td>any collection, String</td><td><code>bool</code></td></tr>
+<tr><td><code>.starts_with(s)</code>, <code>.ends_with(s)</code></td><td>String</td><td><code>bool</code></td></tr>
+<tr><td><code>.is_some()</code>, <code>.is_none()</code></td><td>Option</td><td><code>bool</code></td></tr>
+<tr><td><code>.is_ok()</code>, <code>.is_err()</code></td><td>Result</td><td><code>bool</code></td></tr>
+<tr><td><code>.unwrap()</code></td><td>Option, Result</td><td>the payload; <code>E0009</code> on <code>None</code>/<code>Err</code></td></tr>
+<tr><td><code>.to_string()</code></td><td>any value</td><td><code>String</code></td></tr>
+<tr><td><code>.as_slice()</code></td><td>array</td><td>slice value</td></tr>
+</tbody>
+</table>
+<h3>Debugging</h3>
+<table>
+<thead><tr><th>Signature</th><th>Behaviour</th></tr></thead>
+<tbody>
+<tr><td><code>assert(condition)</code></td><td>Aborts with <code>E0009</code> when the condition is false, or when it is not a <code>bool</code></td></tr>
+<tr><td><code>panic(message)</code></td><td>Aborts with <code>E0009</code> and the message</td></tr>
+</tbody>
+</table>
+</section>
+<section id="cli">
+<h2>13. Command line</h2>
+<p>One binary, <code>kryo</code>. Every subcommand shares the global flags
+<code>--color auto|always|never</code> and <code>--message-format human|short|json</code>.</p>
+<table>
+<thead><tr><th>Command</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>kryo run &lt;file&gt;</code></td><td>Full pipeline: lex, parse, load <code>mod name;</code> files, resolve, type check, borrow check, optimise, interpret. Prints <code>Result: N</code> and exits 0.</td></tr>
+<tr><td><code>kryo check &lt;file&gt;</code></td><td>The same front end without executing. Exits 0 when the program is valid.</td></tr>
+<tr><td><code>kryo build &lt;file&gt; [-o path]</code></td><td>Emits textual LLVM IR, compiles it with clang, links an executable, and runs it.</td></tr>
+<tr><td><code>kryo build-opt &lt;file&gt; -l 0..3</code></td><td>The same pipeline with the optimisation level handed to clang. Out-of-range levels are rejected.</td></tr>
+<tr><td><code>kryo fmt &lt;file&gt;</code></td><td>Prints the AST in canonical form, keeps comments, re-parses its own output, and only then replaces the file.</td></tr>
+<tr><td><code>kryo docs &lt;file&gt; [-f md|html]</code></td><td>Generates a reference from the declarations and their <code>///</code> comments.</td></tr>
+<tr><td><code>kryo test [-t unit|integration|property|all]</code></td><td>Runs the selected suites; any failure makes the command exit non-zero.</td></tr>
+<tr><td><code>kryo bench &lt;file&gt; [-w warmup] [-i iterations]</code></td><td>Times a program over many iterations; a zero iteration count is rejected.</td></tr>
+<tr><td><code>kryo lint &lt;file&gt;</code></td><td>Style and shape warnings that do not stop compilation.</td></tr>
+<tr><td><code>kryo explain &lt;CODE&gt;</code></td><td>Long-form explanation of any diagnostic code.</td></tr>
+<tr><td><code>kryo new &lt;name&gt;</code> / <code>kryo init</code></td><td>Scaffolds a package whose template compiles and runs. <code>init</code> refuses to overwrite an existing package.</td></tr>
+<tr><td><code>kryo lsp</code></td><td>Language server over stdio: completion, hover, symbols, definition, references, rename and a refactor code action.</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<span class="title">Exit codes</span>
+<p><code>0</code> success · <code>1</code> a diagnostic was reported · <code>2</code> a file or I/O problem ·
+<code>3</code> an internal error the compiler could not attribute to the source.</p>
+<h3>Editor support</h3>
+<p>Two extensions ship with the repository, both at version 1.1.0 and built from the same
+grammar and snippet set:</p>
+<table>
+<thead><tr><th>Package</th><th>Target</th><th>Contents</th></tr></thead>
+<tbody>
+<tr><td><code>kryo-language-windsurf-1.1.0.vsix</code></td><td>Windsurf / Devin</td><td rowspan="2">Syntax highlighting (<code>source.kryo</code>), language configuration, 90 snippets, and commands for build, run, check, format, lint, restart server and documentation</td></tr>
+<tr><td><code>kryo-language-1.1.0.vsix</code></td><td>VS Code</td></tr>
+</tbody>
+</table>
+<pre><code>code --install-extension kryo-vscode-extension\kryo-language-1.1.0.vsix
+windsurf --install-extension kryo-windsurf-extension\kryo-language-windsurf-1.1.0.vsix</code></pre>
+<p>The grammar covers the whole keyword set, including <code>dyn</code>, <code>newtype</code>,
+<code>async</code>, <code>await</code>, <code>move</code>, <code>repr</code>, <code>where</code> and the ten
+compound-assignment operators. Snippets mirror the constructs the compiler accepts today:
+<code>modfile</code> (<code>mod name;</code>), <code>enum_payload</code> and <code>match_enum</code>
+(payload destructuring), <code>impl_generic</code> (<code>impl&lt;T&gt; Type&lt;T&gt;</code>) and
+<code>tuple_field</code> (<code>pair.0</code>).</p>
+<p>For the native backend, <code>kryo build</code> looks for a C compiler in this order: the
+<code>KRYO_CLANG</code> environment variable, <code>clang</code> on <code>PATH</code>, then the usual LLVM
+install locations on Windows, Linux and macOS. If none is found it reports <code>E0007</code> with the
+searched locations; <code>kryo run</code> never needs it.</p>
+</div>
+</section>
+
+<section id="diagnostics">
+<h2>14. Diagnostics</h2>
+<p>Every error and warning carries a code, a source span, a label under the offending text, and usually a
+suggestion. <code>kryo explain &lt;CODE&gt;</code> prints the long form.</p>
+<table>
+<thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>E0001</code></td><td>Lexical error</td></tr>
+<tr><td><code>E0002</code></td><td>Syntax error</td></tr>
+<tr><td><code>E0003</code></td><td>Type error (including capacity and contract-shape problems)</td></tr>
+<tr><td><code>E0004</code></td><td>Undefined name</td></tr>
+<tr><td><code>E0005</code></td><td>Borrow or ownership error</td></tr>
+<tr><td><code>E0006</code></td><td>Construct not supported by the native backend</td></tr>
+<tr><td><code>E0007</code></td><td>Package or manifest error</td></tr>
+<tr><td><code>E0008</code></td><td>Usage error (bad flag, bad level, bad test type)</td></tr>
+<tr><td><code>E0009</code></td><td>Runtime error: division by zero, bounds, failed assertion, panic</td></tr>
+<tr><td><code>E0010</code></td><td>Contract violation</td></tr>
+<tr><td><code>E0011</code></td><td>Resource state violation</td></tr>
+<tr><td><code>E0012</code></td><td>Unsafe-code rule violation</td></tr>
+<tr><td><code>E0013</code></td><td>Formatting refused (the file was left untouched)</td></tr>
+<tr><td><code>W0001–W0008</code></td><td>Warnings: unused binding, unreachable code, dead store, and friends</td></tr>
+</tbody>
+</table>
+<pre><code>error[E0004]: undefined variable `totaal`
+ --&gt; demo.kyo:4:12
+  |
+4 |     return totaal + 1;
+  |            ^^^^^^ not defined in this scope
+  |
+help: did you mean `total`?</code></pre>
+</section>
+
+<section id="testing">
+<h2>15. Testing and benchmarks</h2>
+<p>Kryo's own behaviour is pinned by <strong>573 tests</strong> across the workspace, all green:</p>
+<table>
+<thead><tr><th>Suite</th><th>Tests</th><th>Covers</th></tr></thead>
+<tbody>
+<tr><td><code>tests/full_regression_test.rs</code></td><td>77</td><td>One test per documented behaviour: lexer, operators, control flow, globals, builtin methods, pattern matching, traits, domains, resources, contracts, float intrinsics, optimiser, diagnostics, every example and library</td></tr>
+<tr><td><code>tests/language_conformance_test.rs</code></td><td>125</td><td>The language surface, feature by feature</td></tr>
+<tr><td><code>tests/diagnostics_test.rs</code></td><td>38</td><td>Codes, spans, labels, suggestions, all three render formats</td></tr>
+<tr><td><code>tests/known_bugs_test.rs</code></td><td>18</td><td>Bugs found during the audit, each pinned so it cannot come back — <em>all passing</em></td></tr>
+<tr><td><code>tests/resources_contracts_test.rs</code></td><td>19</td><td>Resource state machines and contracts</td></tr>
+<tr><td><code>cli/tests/cli_e2e.rs</code></td><td>39</td><td>Every subcommand end to end</td></tr>
+<tr><td><code>cli/tests/cli_known_bugs.rs</code></td><td>15</td><td>CLI defects, each pinned — <em>all passing</em></td></tr>
+<tr><td><code>cli/tests/cli_diagnostics.rs</code></td><td>18</td><td>The CLI's rendering of diagnostics</td></tr>
+<tr><td><code>tests/libraries_test.rs</code></td><td>13</td><td>The eight libraries with their demos</td></tr>
+<tr><td><code>tests/diagnostics_test.rs</code>, unit tests</td><td>106</td><td>Renderer, printer round-trips, symbol index, x86 assembler, lexer</td></tr>
+<tr><td><code>tests/stress_and_differential_test.rs</code></td><td>18</td><td>Native vs interpreter on six real programs and 120 generated expressions, bounds stress in both engines, exhaustive library invariants, 10k-iteration and 100×100-loop stress, and timing benchmarks</td></tr>
+</tbody>
+</table>
+<pre><code>cargo test --workspace     # 573 passed, 0 failed
+cargo bench -p kryo-compiler</code></pre>
+</section>
+
+<section id="examples">
+<h2>16. Examples</h2>
+<p><code>examples/docs/</code> holds sixteen runnable programs, verified by the test suite:</p>
+<pre><code>01_hello.kyo              09_generics.kyo
+02_variables.kyo          10_traits.kyo
+03_functions.kyo          11_capacity_types.kyo
+04_control_flow.kyo       12_memory_domains.kyo
+05_loops.kyo              13_resources.kyo
+06_structs.kyo            14_generics_traits.kyo
+07_enums_match.kyo        15_io_builtins.kyo
+08_arrays.kyo             16_error_handling.kyo</code></pre>
+<pre><code>kryo run examples/docs/04_control_flow.kyo</code></pre>
+</section>
+
+<section id="libraries">
+<h2>17. Libraries</h2>
+<p>Eight self-contained modules in <code>lib/</code>, each with a demo that returns a failure count.
+Concatenate a library with its demo to run it — Kryo compiles one file at a time.</p>
+<table>
+<thead><tr><th>Module</th><th>Lines</th><th>What it gives you</th></tr></thead>
+<tbody>
+<tr><td><code>bits.kyo</code></td><td>172</td><td>Population count, leading/trailing zeros, rotate, byte swap, sign extension, field extraction</td></tr>
+<tr><td><code>bitmap.kyo</code></td><td>101</td><td>A frame allocator over a <code>[u32; N]</code>: set, clear, test, first free, run counting</td></tr>
+<tr><td><code>fixed.kyo</code></td><td>106</td><td>Q16.16 fixed point: multiply, divide, saturate, conversions — no FPU needed</td></tr>
+<tr><td><code>mmio.kyo</code></td><td>177</td><td>Register access with shift/mask, plus a PL011-style UART with RX/TX FIFOs</td></tr>
+<tr><td><code>ring.kyo</code></td><td>100</td><td>A power-of-two byte ring buffer with full/empty handling</td></tr>
+<tr><td><code>sched.kyo</code></td><td>201</td><td>A round-robin task table with per-task state and tick accounting</td></tr>
+<tr><td><code>text.kyo</code></td><td>249</td><td>Allocation-free formatting: integers in any base, padding, hex dumps</td></tr>
+<tr><td><code>tui.kyo</code></td><td>126</td><td>Boxes, headings, progress bars and sparklines for a text console</td></tr>
+</tbody>
+</table>
+<pre><code>Get-Content lib\bits.kyo, lib\tests\bits_demo.kyo | Set-Content both.kyo
+kryo run both.kyo</code></pre>
+</section>
+
+<section id="internals">
+<h2>18. Internals</h2>
+<p>Two back ends share one front end.</p>
+<pre><code>source
+  -&gt; lexer.rs        tokens (terminated by an explicit EOF)
+  -&gt; parser.rs       AST
+  -&gt; semantic.rs     name resolution, scopes, suggestions
+  -&gt; types.rs        inference, capacity, contracts, trait dispatch
+  -&gt; ownership.rs    moves, borrows, resource states, leaks
+  -&gt; optimize.rs     constant propagation, dead code elimination
+  -&gt; interpreter.rs  reference semantics   (kryo run)
+  -&gt; llvm_codegen.rs textual LLVM IR -&gt; clang -&gt; executable   (kryo build)</code></pre>
+<p>The interpreter runs on a dedicated 256 MiB thread, so recursion depth is bounded by memory rather than
+by the host stack. The native backend lowers arithmetic, formatting, calls, recursion, loops, arrays,
+<code>const</code>/<code>static</code> and traits-free structs; anything it cannot represent raises
+<code>E0006</code> instead of emitting wrong code.</p>
+</section>
+
+<section id="limitations">
+<h2>19. Limitations</h2>
+<p>Everything below is stated plainly so nothing surprises you at the worst moment.</p>
+<h3>Language</h3>
+<table>
+<thead><tr><th>Item</th><th>State</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Closures, operator overloading, macros</td><td><span class="badge plan">not implemented</span></td><td>Out of scope for this prototype; write a named function instead</td></tr>
+<tr><td>Lifetimes</td><td><span class="badge plan">not implemented</span></td><td>Values are explicitly moved or copied; there are no borrow annotations to write</td></tr>
+<tr><td>Threads, atomics, real async scheduling</td><td><span class="badge plan">not implemented</span></td><td><code>.await</code> parses and evaluates synchronously</td></tr>
+<tr><td>SIMD</td><td><span class="badge plan">not implemented</span></td><td>No vector types; use a library and scalar loops</td></tr>
+<tr><td>More than one source file per compilation</td><td><span class="badge ok">works</span></td><td><code>mod name;</code> loads <code>name.kyo</code> from the same directory</td></tr>
+<tr><td>Generic <code>impl&lt;T&gt; Type&lt;T&gt;</code></td><td><span class="badge ok">works</span></td><td>Generic functions, generic structs and generic method blocks</td></tr>
+<tr><td><code>pub</code> on <code>impl</code> methods</td><td><span class="badge ok">accepted</span></td><td>Ignored: methods are reachable through their type</td></tr>
+<tr><td>Struct equality (<code>a == b</code>)</td><td><span class="badge ok">works</span></td><td>Structural, and so are tuples, arrays and <code>Option</code></td></tr>
+<tr><td>Tuple field access (<code>t.0</code>)</td><td><span class="badge ok">works</span></td><td>Bounds checked at run time</td></tr>
+</tbody>
+</table>
+<h3>Tooling</h3>
+<table>
+<thead><tr><th>Item</th><th>State</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>kryo build</code></td><td><span class="badge ok">works</span></td><td>Arithmetic, calls, loops, arrays with bounds checks, enums and <code>match</code>. Unsupported constructs fail with <code>E0006</code></td></tr>
+<tr><td><code>kryo fmt</code></td><td><span class="badge ok">works</span></td><td>Re-attaches <code>//</code> and <code>/* */</code> comments by source line, is idempotent, and re-parses its own output before writing. Refuses constructs it cannot print</td></tr>
+<tr><td><code>kryo build-opt</code></td><td><span class="badge ok">works</span></td><td>Real <code>-O0..-O3</code> artefact</td></tr>
+<tr><td><code>kryo docs</code></td><td><span class="badge ok">works</span></td><td>Captures <code>///</code>; HTML is converted and escaped</td></tr>
+<tr><td><code>kryo test</code></td><td><span class="badge ok">works</span></td><td>Honours <code>--test-type</code> and fails the run</td></tr>
+<tr><td>LSP</td><td><span class="badge ok">works</span></td><td>Completion, hover, symbols, definition, references, rename, and a snake_case rename code action</td></tr>
+<tr><td>Memory domains in the native backend</td><td><span class="badge plan">interpreter only</span></td><td><code>Heap</code>/<code>GPU</code>/<code>Shared</code> handles are not lowered to IR; use them under <code>kryo run</code></td></tr>
+<tr><td><code>kryo build</code> without clang</td><td><span class="badge ok">searched</span></td><td><code>KRYO_CLANG</code>, then <code>clang</code> on <code>PATH</code>, then the usual install locations</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="project">
+<h2>20. Project</h2>
+<pre><code>Kryo/
+  compiler/   lexer parser ast semantic types ownership optimize interpreter
+              hir mir llvm_codegen diagnostic explain docs x86_64 printer
+  cli/        main.rs (subcommands), lsp.rs, benchmarks, test runners
+  lib/        eight standard-library modules + demos
+  examples/   sixteen documented programs
+  tests/      the language, diagnostics, libraries and regression suites
+  docs/       this page</code></pre>
+<h3>Where Kryo is genuinely strong</h3>
+<ul>
+<li><strong>Capacity as a type.</strong> <code>BoundedVec&lt;T, N&gt;</code> and <code>Bounded&lt;i32, lo, hi&gt;</code> are checked at compile time and at runtime — no silent overrun.</li>
+<li><strong>Resource state machines.</strong> Use-after-close, double-close and an unclosed file are all reported before the program runs.</li>
+<li><strong>Contracts.</strong> <code>requires</code>/<code>ensures</code> are executed, so a violated precondition names the function and the span.</li>
+<li><strong>Diagnostics.</strong> Every failure carries a code, a span, a label and usually a suggestion — the same shape as rustc's.</li>
+<li><strong>Memory domains.</strong> Stack, Heap, GPU, Shared, Persistent, Distributed and Transfer are first-class in the type system.</li>
+</ul>
+</section>
+<section id="faq">
+<h2>21. FAQ and troubleshooting</h2>
+
+<h3>Why does <code>cargo build --release</code> produce no binary?</h3>
+<p>The root package has no targets. Use <code>cargo build --release --workspace</code>.</p>
+
+<h3>Why do my computed values disappear from the <code>kryo build</code> output?</h3>
+<p>They do not any more: formatting, arithmetic, calls, recursion, loops, arrays and <code>const</code> are all
+compiled. Constructs the backend cannot lower (for example printing a struct) fail with
+<code>E0006</code> instead of printing <code>{}</code>.</p>
+
+<h3>Why does <code>kryo check</code> reject a program that <code>kryo run</code> executes?</h3>
+<p>It no longer does. <code>check</code> runs the same front end as <code>run</code> (lexer, parser,
+resolver, type checker, borrow checker) and then generates IR without linking.</p>
+
+<h3>My <code>while</code> loop never ends even though it has a <code>break</code></h3>
+<p>It should end: <code>break</code> leaves the innermost loop and <code>continue</code> skips to the next
+iteration, in both <code>while</code> and <code>for</code>. If a loop still runs forever, check that the
+condition variable is updated on every path.</p>
+
+<h3>Why is <code>x += 1</code> rejected?</h3>
+<p>It is not: all ten compound assignments work and are lowered to <code>x = x + 1</code>. If you see an
+error here, make sure <code>x</code> is declared with <code>let mut</code>.</p>
+
+<h3>Why does <code>if s.contains("x")</code> fail to compile?</h3>
+<p>It compiles. <code>contains</code> is typed <code>bool</code>, like <code>is_some</code>,
+<code>is_empty</code> and the other predicates.</p>
+
+<h3>How do I print a value of an unknown type?</h3>
+<p><code>println("{}", value)</code> renders integers, floats, booleans, strings, structs, enums, arrays,
+tuples, optionals and domain handles. Use <code>.to_string()</code> when you need the text as a
+<code>String</code>.</p>
+
+<h3>Why did the caret point at the wrong thing?</h3>
+<p>It should not. Columns count characters (not bytes), tabs are expanded, and a BOM is skipped. If a caret
+is misaligned, that is a bug — please report the file with the diagnostic.</p>
+
+<h3>How do I get machine-readable errors?</h3>
+<p><code>kryo run file.kyo --message-format json</code>. Each diagnostic is one JSON object on stderr with
+severity, code, category, message, spans and suggestions.</p>
+
+<h3>How do I disable colours in CI?</h3>
+<p>Nothing to do: colour is off when stderr is not a terminal. To be explicit, pass
+<code>--color never</code>.</p>
+
+<h3>Where is the standard library?</h3>
+<p>There is no separate library crate. The built-ins listed in <a href="#stdlib">Built-in library</a> are
+provided by the interpreter; <code>std/</code> in the repository is an empty placeholder.</p>
+
+<h3>Can I call C functions?</h3>
+<p>You can declare them with <code>extern "C"</code> and call them inside <code>unsafe</code>. The
+interpreter does not perform the foreign call — it returns the zero value of the declared type — so real FFI
+requires the native back end, which is incomplete.</p>
+
+<h3>Why does <code>kryo explain E9999</code> fail?</h3>
+<p>Only codes the compiler can actually emit have explanations. Run <code>kryo explain</code> without an
+argument to list them.</p>
+
+<h3>How deep can recursion go?</h3>
+<p>About ten thousand nested calls before the host stack is exhausted; the interpreter runs on a 256 MiB
+thread. Deeper recursion aborts the process rather than raising a diagnostic.</p>
+
+<h3>Something crashed with <code>E0008</code>. What now?</h3>
+<p><code>E0008</code> means an internal invariant broke — the program is not at fault. Report it with the
+source and the command. The exit status is <code>3</code> so scripts can tell it apart from a normal
+compile error.</p>
+</section>
+
+<footer>
+<p><strong>Kryo language reference.</strong> Generated for this repository; every command, code path and
+example was executed against the current build. Where behaviour differs from the older Markdown notes in
+<code>docs/</code>, this page is the accurate one.</p>
+<p>See also: <a href="#limitations">Limitations</a> · <a href="#diagnostics">Diagnostics</a> ·
+<a href="#cli">CLI reference</a> · <a href="#examples">Examples</a></p>
+</footer>
+</main>
+</div>
+
+<button class="top" id="toTop" hidden aria-label="Back to top">↑</button>
+
+<script>
+(function () {
+  "use strict";
+
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  var KEYWORDS = new Set(("fn let mut if else while for in return break continue match case struct enum " +
+    "trait impl type mod use pub const static unsafe where as extern dyn self Self ref super crate " +
+    "true false requires ensures async await newtype").split(" "));
+  var TYPES = new Set(("bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 usize isize char String " +
+    "Option Result Vec HashMap Bounded BoundedVec Stack Heap Persistent GPU Shared Distributed Transfer " +
+    "File Socket Thread Mutex Device DMA Handle Math System").split(" "));
+
+  var IDENT = /[A-Za-z_][A-Za-z0-9_]*/y;
+  var NUM = /[0-9][0-9a-zA-Z_.]*/y;
+
+  /* A small, dependency-free tokeniser for Kryo source. It walks the text once,
+     so a string containing `//` can never be mistaken for a comment. */
+  function highlightKryo(src) {
+    var out = "", i = 0, n = src.length;
+    while (i < n) {
+      var c = src[i];
+      if (c === "/" && src[i + 1] === "/") {
+        var j = src.indexOf("\n", i);
+        if (j < 0) j = n;
+        out += '<span class="c">' + esc(src.slice(i, j)) + "</span>";
+        i = j;
+        continue;
+      }
+      if (c === "/" && src[i + 1] === "*") {
+        var k = src.indexOf("*/", i + 2);
+        k = k < 0 ? n : k + 2;
+        out += '<span class="c">' + esc(src.slice(i, k)) + "</span>";
+        i = k;
+        continue;
+      }
+      if (c === '"' || c === "'") {
+        var q = c, p = i + 1;
+        while (p < n) {
+          if (src[p] === "\\") { p += 2; continue; }
+          if (src[p] === q) { p++; break; }
+          p++;
+        }
+        out += '<span class="s">' + esc(src.slice(i, p)) + "</span>";
+        i = p;
+        continue;
+      }
+      NUM.lastIndex = i;
+      var mNum = NUM.exec(src);
+      if (mNum && /[0-9]/.test(c)) {
+        out += '<span class="n">' + esc(mNum[0]) + "</span>";
+        i += mNum[0].length;
+        continue;
+      }
+      IDENT.lastIndex = i;
+      var mId = IDENT.exec(src);
+      if (mId) {
+        var w = mId[0];
+        if (KEYWORDS.has(w)) out += '<span class="k">' + esc(w) + "</span>";
+        else if (TYPES.has(w)) out += '<span class="t">' + esc(w) + "</span>";
+        else out += esc(w);
+        i += w.length;
+        continue;
+      }
+      out += esc(c);
+      i++;
+    }
+    return out;
+  }
+
+  /* ---------- code blocks: label, highlight, copy ---------- */
+  var blocks = Array.prototype.slice.call(document.querySelectorAll("pre[data-lang]"));
+  blocks.forEach(function (pre) {
+    var lang = pre.getAttribute("data-lang");
+    var code = pre.querySelector("code");
+    var raw = code ? code.textContent : "";
+    try {
+      if (lang === "kyro") code.innerHTML = highlightKryo(raw);
+      else code.innerHTML = esc(raw);
+    } catch (e) {
+      if (code) code.textContent = raw; /* never leave the block unreadable */
+    }
+
+    var label = document.createElement("span");
+    label.className = "lang";
+    label.setAttribute("aria-hidden", "true");
+    label.textContent = lang;
+    pre.appendChild(label);
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "copy";
+    btn.textContent = "Copy";
+    btn.setAttribute("aria-label", "Copy this " + lang + " code block");
+    btn.addEventListener("click", function () {
+      var text = raw;
+      function done() {
+        btn.textContent = "Copied";
+        btn.classList.add("done");
+        setTimeout(function () {
+          btn.textContent = "Copy";
+          btn.classList.remove("done");
+        }, 1400);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else {
+        fallback();
+      }
+      function fallback() {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); } catch (e) { btn.textContent = "Press Ctrl+C"; }
+        document.body.removeChild(ta);
+      }
+    });
+    pre.appendChild(btn);
+  });
+
+  /* ---------- search ---------- */
+  var sections = Array.prototype.slice.call(document.querySelectorAll("main > section[id]")).map(function (s) {
+    var h2 = s.querySelector("h2");
+    return {
+      id: s.id,
+      title: h2 ? h2.textContent.replace(/^\d+\.\s*/, "") : s.id,
+      text: (s.textContent || "").replace(/\s+/g, " ").toLowerCase()
+    };
+  });
+
+  var input = document.getElementById("search");
+  var results = document.getElementById("results");
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll("#sidebar nav a"));
+
+  function clearResults() {
+    results.hidden = true;
+    results.innerHTML = "";
+    navLinks.forEach(function (a) { a.classList.remove("active"); });
+  }
+
+  function search(query) {
+    var q = query.trim().toLowerCase();
+    if (!q) { clearResults(); return; }
+    var terms = q.split(/\s+/);
+    var hits = sections.filter(function (s) {
+      return terms.every(function (t) { return s.text.indexOf(t) >= 0; });
+    }).slice(0, 8);
+    results.innerHTML = "";
+    if (!hits.length) {
+      var none = document.createElement("div");
+      none.className = "hint";
+      none.textContent = "No section matches “" + query.trim() + "”.";
+      results.appendChild(none);
+    } else {
+      hits.forEach(function (s, idx) {
+        var a = document.createElement("a");
+        a.href = "#" + s.id;
+        a.textContent = s.title;
+        a.setAttribute("role", "option");
+        if (idx === 0) a.dataset.first = "1";
+        a.addEventListener("click", function () { results.hidden = true; });
+        results.appendChild(a);
+      });
+      navLinks.forEach(function (a) {
+        a.classList.toggle("active", a.getAttribute("href") === "#" + hits[0].id);
+      });
+    }
+    results.hidden = false;
+  }
+
+  if (input) {
+    input.addEventListener("input", function () { search(input.value); });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        var first = results.querySelector("a");
+        if (first) { location.hash = first.getAttribute("href"); results.hidden = true; }
+      } else if (e.key === "Escape") {
+        input.value = "";
+        clearResults();
+        input.blur();
+      }
+    });
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "/" && document.activeElement !== input && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      if (input) input.focus();
+    }
+  });
+
+  /* ---------- active section tracking ---------- */
+  if ("IntersectionObserver" in window) {
+    var byId = {};
+    navLinks.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+    var visible = new Set();
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) visible.add(en.target.id);
+        else visible.delete(en.target.id);
+      });
+      if (!visible.size) return;
+      var firstId = sections.map(function (s) { return s.id; }).filter(function (id) { return visible.has(id); })[0];
+      navLinks.forEach(function (a) { a.classList.toggle("active", a.getAttribute("href") === "#" + firstId); });
+    }, { rootMargin: "-15% 0px -70% 0px" });
+    document.querySelectorAll("main > section[id]").forEach(function (s) { io.observe(s); });
+  }
+
+  /* ---------- mobile navigation ---------- */
+  var toggle = document.getElementById("menuToggle");
+  var scrim = document.getElementById("scrim");
+  function setNav(open) {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    if (scrim) scrim.hidden = !open;
+  }
+  if (toggle) toggle.addEventListener("click", function () {
+    setNav(!document.body.classList.contains("nav-open"));
+  });
+  if (scrim) scrim.addEventListener("click", function () { setNav(false); });
+  document.querySelectorAll("#sidebar nav a").forEach(function (a) {
+    a.addEventListener("click", function () { setNav(false); });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") setNav(false);
+  });
+
+  /* ---------- back to top ---------- */
+  var top = document.getElementById("toTop");
+  window.addEventListener("scroll", function () {
+    if (top) top.hidden = window.scrollY < 600;
+  }, { passive: true });
+  if (top) top.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+</body>
+</html>
