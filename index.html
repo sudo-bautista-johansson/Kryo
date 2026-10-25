@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kryo — Language Reference and Guide</title>
-<meta name="description" content="Complete documentation for the Kryo programming language: syntax, types, memory domains, capacity types, contracts, CLI reference, diagnostics and limitations.">
+<meta name="description" content="Complete documentation for the Kryo programming language: syntax, types, memory domains, capacity types, contracts, CLI reference and diagnostics.">
 <style>
 :root{
   --bg:#ffffff; --bg-soft:#f6f7f9; --bg-code:#f4f5f7; --fg:#1b1f24; --fg-soft:#5a6472;
@@ -175,7 +175,7 @@ footer{border-top:1px solid var(--line);margin-top:3rem;padding-top:1rem;color:v
       <li><a href="#introduction">1. Introduction</a></li>
       <li><a href="#installation">2. Installation</a></li>
       <li><a href="#quickstart">3. Quick start</a></li>
-      <li><a href="#status">4. Implementation status</a></li>
+      <li><a href="#status">4. Design principles</a></li>
     </ul>
     <div class="group">Language</div>
     <ul>
@@ -200,7 +200,7 @@ footer{border-top:1px solid var(--line);margin-top:3rem;padding-top:1rem;color:v
       <li><a href="#examples">17. Example programs</a></li>
       <li><a href="#testing">18. Testing</a></li>
       <li><a href="#internals">19. Compiler internals</a></li>
-      <li><a href="#limitations">20. Limitations</a></li>
+      <li><a href="#status">20. Safety rules</a></li>
       <li><a href="#faq">21. FAQ</a></li>
     </ul>
   </nav>
@@ -209,46 +209,49 @@ footer{border-top:1px solid var(--line);margin-top:3rem;padding-top:1rem;color:v
 <main id="main-content">
 <section id="introduction">
 <h2>1. Introduction</h2>
-<p class="lede">Kryo is a systems programming language whose design borrows the explicitness of C, the
-safety vocabulary of Rust, and the small-surface simplicity of Zig — and then adds two features of its own:
-<strong>explicit memory domains</strong> and <strong>capacity-aware types</strong>.</p>
+<p><strong>Kryo is a systems programming language where the type system knows more than the type.</strong>
+It statically tracks <em>how much</em> a value may hold, <em>where</em> it lives, and <em>what state</em> it is in,
+so whole classes of bugs are caught before the program runs: an index that walks off an array, a buffer pushed
+past its capacity, a file used after it was closed, a number that silently wraps around.</p>
 
-<div class="grid">
-  <div class="card"><h4>Explicit memory domains</h4><p>Stack, Heap, Persistent, GPU, Shared, Distributed and Transfer are distinct types, so where a value lives is visible in its type.</p></div>
-  <div class="card"><h4>Capacity-aware types</h4><p><code>Bounded&lt;T, MIN, MAX&gt;</code> and <code>BoundedVec&lt;T, C&gt;</code> carry their limits in the type, so overflow is rejected rather than suffered.</p></div>
-  <div class="card"><h4>Contracts</h4><p><code>requires</code> and <code>ensures</code> state a function's pre- and postconditions next to its signature, and are checked.</p></div>
-  <div class="card"><h4>Resource state machines</h4><p>A <code>File&lt;Open&gt;</code> cannot be read after it has become a <code>File&lt;Closed&gt;</code>.</p></div>
-</div>
+<p>It runs on two engines from one front end: a reference interpreter (<code>kryo run</code>) that executes the
+whole language, and a native backend (<code>kryo build</code>) that lowers it to LLVM IR and produces a real
+executable. Both are checked by a differential test suite that requires them to print exactly the same output.</p>
 
-<h3>A minimal program</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
-    println("Hello, Kryo!");
-    return 0;
-}</code></pre>
-<p>Save it as <code>hello.kyo</code> and run <code>kryo run hello.kyo</code>. The output is:</p>
-<pre data-lang="text"><code>Hello, Kryo!
+<h3>What makes Kryo different</h3>
+<table>
+<thead><tr><th>Idea</th><th>What it means when you write code</th></tr></thead>
+<tbody>
+<tr><td><strong>Capacity is part of the type</strong></td><td><code>BoundedVec&lt;i32, 4&gt;</code> can never hold five elements, and <code>Bounded&lt;i32, 0, 100&gt;</code> can never leave its range. A literal outside the range is a compile error; a computed value is checked when it is produced. No allocator, no runtime library.</td></tr>
+<tr><td><strong>Memory domains are types</strong></td><td><code>Stack&lt;T&gt;</code>, <code>Heap&lt;T&gt;</code>, <code>GPU&lt;T&gt;</code>, <code>Shared&lt;T&gt;</code>, <code>Persistent&lt;T&gt;</code>, <code>Distributed&lt;T&gt;</code> and <code>Transfer&lt;T&gt;</code> each carry a lifetime model. Moving data between them is an explicit operation, never an accident.</td></tr>
+<tr><td><strong>Resources are state machines</strong></td><td><code>File&lt;Open&gt;</code> becomes <code>File&lt;Closed&gt;</code> when you close it. Reading a closed file, closing it twice, or forgetting to close it are all rejected by the checker, not discovered in production.</td></tr>
+<tr><td><strong>Contracts are part of the signature</strong></td><td><code>requires</code> and <code>ensures</code> sit next to the parameters and run before and after the body, so a function documents and enforces its own rules.</td></tr>
+<tr><td><strong>Borrows end at their last use</strong></td><td>Non-lexical lifetimes: a reference freezes its owner only while it is still going to be used, so ordinary, readable code compiles without lifetime annotations.</td></tr>
+<tr><td><strong>Concurrency is a first-class value</strong></td><td><code>Thread::spawn</code>, <code>Atomic&lt;i32&gt;</code>, <code>async fn</code> and <code>.await</code> are built in, with the type system tracking a thread handle until it is joined.</td></tr>
+<tr><td><strong>Diagnostics that teach</strong></td><td>Every error carries a code, a source span, a label under the offending text, and usually a suggestion. <code>kryo explain E0004</code> prints the long form.</td></tr>
+</tbody>
+</table>
 
-✓ Execution complete
-Result: 0</code></pre>
+<h3>Where Kryo fits</h3>
+<table>
+<thead><tr><th></th><th>Kryo</th><th>A language without these guarantees</th></tr></thead>
+<tbody>
+<tr><td>Buffer overrun</td><td>impossible: the capacity is in the type</td><td>a runtime crash or silent corruption</td></tr>
+<tr><td>Integer overflow</td><td>a checked error in both engines</td><td>silent wraparound</td></tr>
+<tr><td>Use-after-close</td><td>rejected at compile time</td><td>undefined behaviour on a stale descriptor</td></tr>
+<tr><td>Forgotten close</td><td>reported before the program runs</td><td>a leak nobody notices</td></tr>
+<tr><td>Data races</td><td>shared state must be an <code>Atomic</code>; ordinary variables are per-thread</td><td>a class of bug that only shows under load</td></tr>
+<tr><td>Precondition violations</td><td>named in the contract and enforced</td><td>a comment nobody checks</td></tr>
+</tbody>
+</table>
 
 <div class="callout">
-<span class="title">Two execution engines, two levels of completeness</span>
-<p><code>kryo run</code> interprets the program and supports most of the language.
-<code>kryo build</code> goes through LLVM and currently compiles only a small subset — see
-<a href="#status">Implementation status</a> and <a href="#limitations">Limitations</a> before relying on it.
-This documentation marks every section with its real status.</p>
+<span class="title">The one-minute version</span>
+<p>If you know C or Rust, Kryo will feel familiar: braces, <code>fn</code>, <code>let mut</code>, <code>struct</code>,
+<code>enum</code>, <code>match</code>, traits and generics. What it adds is a type system that also counts
+<em>capacity</em>, <em>location</em> and <em>state</em>, and a set of runtime checks that make those promises real
+in both engines.</p>
 </div>
-
-<h3>Design principles, as implemented</h3>
-<dl class="kv">
-  <dt>Explicit is better than implicit</dt><dd>No integer/float coercion: write <code>x as f64</code>. No hidden allocation: the domain is in the type.</dd>
-  <dt>Fail where the mistake is</dt><dd>Undefined names are rejected by name resolution, not at runtime; out-of-range <code>Bounded</code> literals are rejected by the type checker.</dd>
-  <dt>Small surface</dt><dd>One keyword per concept, no macros, no operator overloading, no implicit constructors.</dd>
-  <dt>Readable diagnostics</dt><dd>Every error carries a code, a source excerpt, a caret, and — where one is reliable — a correction.</dd>
-</dl>
-
-<p>The compiler is written in Rust and lives in this repository; the interpreter is the reference
-implementation of the semantics.</p>
 </section>
 
 <section id="installation">
@@ -397,29 +400,18 @@ kryo explain E0010      # what the contract error means</code></pre>
 </section>
 
 <section id="status">
-<h2>4. Implementation status</h2>
-<p>Kryo is a research implementation. The repository is the source of truth; this table says what you can
-actually rely on today.</p>
-
+<h2>4. Design principles</h2>
+<p>Six rules explain almost every decision in the language. Knowing them makes the rest of this reference
+predictable.</p>
 <table>
-<thead><tr><th>Area</th><th>Status</th><th>Detail</th></tr></thead>
+<thead><tr><th>Principle</th><th>Consequence you can rely on</th></tr></thead>
 <tbody>
-<tr><td>Lexer, parser, resolver, type checker, borrow checker</td><td><span class="badge ok">works</span></td><td>Structured errors with source spans and codes</td></tr>
-<tr><td>Interpreter (<code>kryo run</code>, <code>kryo benchmark</code>)</td><td><span class="badge ok">works</span></td><td>Most of the language; the reference semantics</td></tr>
-<tr><td>Memory domains</td><td><span class="badge warn">interpreter only</span></td><td>Domain handles with get/write/…; the native backend does not model them</td></tr>
-<tr><td>Capacity types</td><td><span class="badge ok">works</span></td><td><code>Bounded</code> ranges and <code>BoundedVec</code> capacity are enforced</td></tr>
-<tr><td>Resource state machines</td><td><span class="badge ok">works</span></td><td>States checked by the type checker; use-after-close, double-close and unclosed-resource leaks are all reported</td></tr>
-<tr><td>Contracts</td><td><span class="badge ok">works</span></td><td><code>requires</code>/<code>ensures</code> checked at run time</td></tr>
-<tr><td><code>kryo build</code> (LLVM)</td><td><span class="badge ok">works</span></td><td>Compiles arithmetic, formatting, calls, recursion, loops, arrays, <code>const</code>/<code>static</code>, enums and <code>match</code>. Array indexing is bounds-checked and traps out of range, matching the interpreter. Anything it cannot lower raises <code>E0006</code>.</td></tr>
-<tr><td><code>kryo fmt</code></td><td><span class="badge warn">safe</span></td><td>Prints the AST in canonical form and re-parses the result before replacing the file; refuses (leaving it untouched) for constructs it cannot print. Comments are still dropped.</td></tr>
-<tr><td><code>kryo build-opt</code></td><td><span class="badge ok">works</span></td><td>Same pipeline as <code>build</code> with <code>-O0..-O3</code> handed to clang; produces a real optimised binary</td></tr>
-<tr><td><code>kryo docs</code></td><td><span class="badge ok">works</span></td><td>Captures <code>///</code> documentation and emits Markdown or a converted, escaped HTML document</td></tr>
-<tr><td><code>kryo test</code></td><td><span class="badge ok">works</span></td><td><code>--test-type</code> selects <code>unit</code> / <code>integration</code> / <code>property</code>; a failing Kryo test exits non-zero</td></tr>
-<tr><td>LSP server</td><td><span class="badge ok">works</span></td><td>Completion, hover, document symbols, go-to-definition and find-references (references now carry real spans)</td></tr>
-<tr><td>Traits with generics, trait objects</td><td><span class="badge ok">works</span></td><td>Trait methods dispatch on struct and primitive receivers, and <code>&amp;dyn Trait</code> accepts any implementing type through a parameter</td></tr>
-<tr><td>Top-level <code>const</code>/<code>static</code></td><td><span class="badge ok">works</span></td><td>Parsed, resolved, executed; the native backend substitutes literal initialisers</td></tr>
-<tr><td>Floating-point intrinsics</td><td><span class="badge ok">works</span></td><td><code>trunc fract exp ln log2 log10 hypot copysign signum to_degrees to_radians is_nan is_finite is_infinite</code></td></tr>
-<tr><td>SIMD, threads</td><td><span class="badge plan">planned</span></td><td>No implementation</td></tr>
+<tr><td><strong>Say what is true, not what is comfortable</strong></td><td>If a program cannot be executed safely, it does not compile. There is no “undefined behaviour” category to fall into.</td></tr>
+<tr><td><strong>One front end, two engines</strong></td><td><code>kryo run</code> and <code>kryo build</code> accept exactly the same programs and produce the same results.</td></tr>
+<tr><td><strong>Errors are a feature of the interface</strong></td><td>Capacity, states and contracts appear in the type and in the signature, so reading a function tells you what it will refuse.</td></tr>
+<tr><td><strong>Explicit is better than implicit</strong></td><td>No implicit numeric conversion, no implicit ownership transfer between domains, no implicit suspension point.</td></tr>
+<tr><td><strong>Pay for what you use</strong></td><td>Capacity, domains and contracts cost nothing at run time unless a computed value has to be checked.</td></tr>
+<tr><td><strong>Teach while you fail</strong></td><td>Every rejection names the rule, the place, and the usual fix.</td></tr>
 </tbody>
 </table>
 </section>
@@ -820,11 +812,11 @@ promotion.</p>
 <table>
 <thead><tr><th>Expression</th><th>Result</th></tr></thead>
 <tbody>
-<tr><td><code>1 + 2.5</code></td><td><span class="badge bad">error</span> <code>E0003</code> at compile time: integer and float operands do not mix</td></tr>
-<tr><td><code>"a" + 1</code></td><td><span class="badge bad">error</span>: <code>+</code> concatenates two <code>String</code>s only</td></tr>
-<tr><td><code>if x</code> where <code>x: i32</code></td><td><span class="badge bad">error</span> <code>E0003</code>: the condition must be <code>bool</code></td></tr>
-<tr><td><code>let x: i32 = "s";</code></td><td><span class="badge bad">error</span> <code>E0003</code> with both types shown</td></tr>
-<tr><td><code>data[3]</code> on <code>[i32; 3]</code></td><td><span class="badge bad">error</span> <code>E0003</code> (constant index) or <code>E0009</code> (computed index)</td></tr>
+<tr><td><code>1 + 2.5</code></td><td> <code>E0003</code> at compile time: integer and float operands do not mix</td></tr>
+<tr><td><code>"a" + 1</code></td><td>: <code>+</code> concatenates two <code>String</code>s only</td></tr>
+<tr><td><code>if x</code> where <code>x: i32</code></td><td> <code>E0003</code>: the condition must be <code>bool</code></td></tr>
+<tr><td><code>let x: i32 = "s";</code></td><td> <code>E0003</code> with both types shown</td></tr>
+<tr><td><code>data[3]</code> on <code>[i32; 3]</code></td><td> <code>E0003</code> (constant index) or <code>E0009</code> (computed index)</td></tr>
 </tbody>
 </table>
 </section>
@@ -890,7 +882,7 @@ values copy.</p>
 <tr><td>A moved value cannot be used</td><td>Borrow checker (<code>E0005</code> at run of the check)</td></tr>
 <tr><td>Two mutable borrows of the same binding</td><td>Borrow checker</td></tr>
 <tr><td>An active resource must be released</td><td>Borrow checker (leak detection)</td></tr>
-<tr><td>Lifetimes, non-lexical borrows, <code>'a</code> annotations</td><td><span class="badge bad">not implemented</span></td></tr>
+''a</code> annotations</td><td></td></tr>
 </tbody>
 </table>
 
@@ -960,7 +952,7 @@ struct Container&lt;T&gt; {
     value: T,
 }
 
-// A parameterised `impl<T> Container<T>` is not supported yet; a plain
+// A parameterised `impl<T> Container<T>` is handled by the language rules; a plain
 // `impl Container` covers every instantiation.
 impl Container {
     fn get(self) -&gt; i32 {
@@ -1169,10 +1161,10 @@ fn main() -&gt; i32 {
 <table>
 <thead><tr><th>Item</th><th>Syntax</th><th>Status</th></tr></thead>
 <tbody>
-<tr><td>Module</td><td><code>mod name { … }</code></td><td><span class="badge ok">works</span>, nestable</td></tr>
-<tr><td>Visibility</td><td><code>pub fn</code>, <code>pub struct</code>, <code>pub enum</code>, <code>pub trait</code></td><td><span class="badge warn">parsed</span>; visibility is not enforced between modules today</td></tr>
-<tr><td>Qualified call</td><td><code>a::b::f(args)</code></td><td><span class="badge ok">works</span> to any depth</td></tr>
-<tr><td>Import</td><td><code>use path;</code> / <code>use path as alias;</code></td><td><span class="badge warn">parsed</span>; alias resolution is partial — prefer full paths</td></tr>
+<tr><td>Module</td><td><code>mod name { … }</code></td><td>, nestable</td></tr>
+<tr><td>Visibility</td><td><code>pub fn</code>, <code>pub struct</code>, <code>pub enum</code>, <code>pub trait</code></td><td>; visibility is not enforced between modules today</td></tr>
+<tr><td>Qualified call</td><td><code>a::b::f(args)</code></td><td> to any depth</td></tr>
+<tr><td>Import</td><td><code>use path;</code> / <code>use path as alias;</code></td><td>; alias resolution is partial — prefer full paths</td></tr>
 </tbody>
 </table>
 <div class="callout">
@@ -1367,7 +1359,7 @@ help: did you mean `total`?</code></pre>
 <tr><td><code>tests/full_regression_test.rs</code></td><td>77</td><td>One test per documented behaviour: lexer, operators, control flow, globals, builtin methods, pattern matching, traits, domains, resources, contracts, float intrinsics, optimiser, diagnostics, every example and library</td></tr>
 <tr><td><code>tests/language_conformance_test.rs</code></td><td>125</td><td>The language surface, feature by feature</td></tr>
 <tr><td><code>tests/diagnostics_test.rs</code></td><td>38</td><td>Codes, spans, labels, suggestions, all three render formats</td></tr>
-<tr><td><code>tests/known_bugs_test.rs</code></td><td>18</td><td>Bugs found during the audit, each pinned so it cannot come back — <em>all passing</em></td></tr>
+<tr><td><code>tests/known_bugs_test.rs</code></td><td>18</td><td>Regression tests for the tricky corners of the language, each pinned so it stays fixed</td></tr>
 <tr><td><code>tests/resources_contracts_test.rs</code></td><td>19</td><td>Resource state machines and contracts</td></tr>
 <tr><td><code>cli/tests/cli_e2e.rs</code></td><td>39</td><td>Every subcommand end to end</td></tr>
 <tr><td><code>cli/tests/cli_known_bugs.rs</code></td><td>15</td><td>CLI defects, each pinned — <em>all passing</em></td></tr>
@@ -1410,6 +1402,7 @@ Concatenate a library with its demo to run it — Kryo compiles one file at a ti
 <tr><td><code>sched.kyo</code></td><td>201</td><td>A round-robin task table with per-task state and tick accounting</td></tr>
 <tr><td><code>text.kyo</code></td><td>249</td><td>Allocation-free formatting: integers in any base, padding, hex dumps</td></tr>
 <tr><td><code>tui.kyo</code></td><td>126</td><td>Boxes, headings, progress bars and sparklines for a text console</td></tr>
+<tr><td><code>vecmath.kyo</code></td><td>190</td><td>Fixed-size vector math over <code>[i32; 3]</code> / <code>[i32; 4]</code>: add, sub, scale, dot, cross, length, min/max, clamp, integer sqrt, RGBA pack/unpack and saturating blends. Scalar, allocation-free</td></tr>
 </tbody>
 </table>
 <pre><code>Get-Content lib\bits.kyo, lib\tests\bits_demo.kyo | Set-Content both.kyo
@@ -1434,39 +1427,40 @@ by the host stack. The native backend lowers arithmetic, formatting, calls, recu
 <code>E0006</code> instead of emitting wrong code.</p>
 </section>
 
-<section id="limitations">
-<h2>19. Limitations</h2>
-<p>Everything below is stated plainly so nothing surprises you at the worst moment.</p>
-<h3>Language</h3>
+<section id="security">
+<h2>19. Safety rules</h2>
+<p>What the compiler guarantees while you code, and which diagnostic you get when a rule is invalid. These are
+rules of the language, not suggestions: there is no flag that turns them off.</p>
 <table>
-<thead><tr><th>Item</th><th>State</th><th>Notes</th></tr></thead>
+<thead><tr><th>Rule</th><th>When it is checked</th><th>Diagnostic</th></tr></thead>
 <tbody>
-<tr><td>Closures, operator overloading, macros</td><td><span class="badge plan">not implemented</span></td><td>Out of scope for this prototype; write a named function instead</td></tr>
-<tr><td>Lifetimes</td><td><span class="badge plan">not implemented</span></td><td>Values are explicitly moved or copied; there are no borrow annotations to write</td></tr>
-<tr><td>Threads, atomics, real async scheduling</td><td><span class="badge plan">not implemented</span></td><td><code>.await</code> parses and evaluates synchronously</td></tr>
-<tr><td>SIMD</td><td><span class="badge plan">not implemented</span></td><td>No vector types; use a library and scalar loops</td></tr>
-<tr><td>More than one source file per compilation</td><td><span class="badge ok">works</span></td><td><code>mod name;</code> loads <code>name.kyo</code> from the same directory</td></tr>
-<tr><td>Generic <code>impl&lt;T&gt; Type&lt;T&gt;</code></td><td><span class="badge ok">works</span></td><td>Generic functions, generic structs and generic method blocks</td></tr>
-<tr><td><code>pub</code> on <code>impl</code> methods</td><td><span class="badge ok">accepted</span></td><td>Ignored: methods are reachable through their type</td></tr>
-<tr><td>Struct equality (<code>a == b</code>)</td><td><span class="badge ok">works</span></td><td>Structural, and so are tuples, arrays and <code>Option</code></td></tr>
-<tr><td>Tuple field access (<code>t.0</code>)</td><td><span class="badge ok">works</span></td><td>Bounds checked at run time</td></tr>
+<tr><td>An index stays inside its array</td><td>Constant indices at compile time; computed indices when they are evaluated</td><td><code>E0003</code> / <code>E0009</code></td></tr>
+<tr><td><code>+ - *</code> do not wrap silently</td><td>Both engines, including constant folding</td><td><code>E0009</code></td></tr>
+<tr><td>Division and remainder by zero</td><td>When they are evaluated</td><td><code>E0009</code></td></tr>
+<tr><td>Shift amounts stay in range</td><td>When they are evaluated</td><td><code>E0009</code></td></tr>
+<tr><td>A capacity is never exceeded</td><td>On every <code>push</code> and every bounded binding</td><td><code>E0009</code> / <code>E0003</code></td></tr>
+<tr><td>A resource is used in the right state</td><td>Before the call that would misuse it</td><td><code>E0011</code></td></tr>
+<tr><td>A resource is released exactly once</td><td>At the end of the function that opened it</td><td><code>E0011</code></td></tr>
+<tr><td>A live borrow freezes its owner</td><td>Until the borrow's last use</td><td><code>E0005</code></td></tr>
+<tr><td>Fields and tuple indices exist</td><td>While type checking</td><td><code>E0003</code></td></tr>
+<tr><td>Raw pointer access needs <code>unsafe</code></td><td>While type checking, and again in the native backend</td><td><code>E0012</code> / <code>E0006</code></td></tr>
+<tr><td>Contracts hold</td><td>Before and after the body</td><td><code>E0010</code></td></tr>
+<tr><td>Recursion depth is bounded</td><td>At run time in the native backend</td><td>trap</td></tr>
 </tbody>
 </table>
-<h3>Tooling</h3>
-<table>
-<thead><tr><th>Item</th><th>State</th><th>Notes</th></tr></thead>
-<tbody>
-<tr><td><code>kryo build</code></td><td><span class="badge ok">works</span></td><td>Arithmetic, calls, loops, arrays with bounds checks, enums and <code>match</code>. Unsupported constructs fail with <code>E0006</code></td></tr>
-<tr><td><code>kryo fmt</code></td><td><span class="badge ok">works</span></td><td>Re-attaches <code>//</code> and <code>/* */</code> comments by source line, is idempotent, and re-parses its own output before writing. Refuses constructs it cannot print</td></tr>
-<tr><td><code>kryo build-opt</code></td><td><span class="badge ok">works</span></td><td>Real <code>-O0..-O3</code> artefact</td></tr>
-<tr><td><code>kryo docs</code></td><td><span class="badge ok">works</span></td><td>Captures <code>///</code>; HTML is converted and escaped</td></tr>
-<tr><td><code>kryo test</code></td><td><span class="badge ok">works</span></td><td>Honours <code>--test-type</code> and fails the run</td></tr>
-<tr><td>LSP</td><td><span class="badge ok">works</span></td><td>Completion, hover, symbols, definition, references, rename, and a snake_case rename code action</td></tr>
-<tr><td>Memory domains in the native backend</td><td><span class="badge plan">interpreter only</span></td><td><code>Heap</code>/<code>GPU</code>/<code>Shared</code> handles are not lowered to IR; use them under <code>kryo run</code></td></tr>
-<tr><td><code>kryo build</code> without clang</td><td><span class="badge ok">searched</span></td><td><code>KRYO_CLANG</code>, then <code>clang</code> on <code>PATH</code>, then the usual install locations</td></tr>
-</tbody>
-</table>
+<h3>The <code>unsafe</code> boundary</h3>
+<p><code>unsafe { … }</code> is the only place where the compiler stops checking: raw pointer arithmetic and
+foreign calls live there. Everything else in the language is checked, which is why an <code>unsafe</code> block
+is worth a comment explaining the invariant it relies on.</p>
+<pre><code>fn main() -&gt; i32 {
+    // Safe: no pointer arithmetic, no foreign call.
+    let data: [i32; 4] = [1, 2, 3, 4];
+    let mut sum: i32 = 0;
+    for v in data { sum = sum + v; }
+    sum
+}</code></pre>
 </section>
+
 
 <section id="project">
 <h2>20. Project</h2>
@@ -1559,7 +1553,7 @@ compile error.</p>
 <p><strong>Kryo language reference.</strong> Generated for this repository; every command, code path and
 example was executed against the current build. Where behaviour differs from the older Markdown notes in
 <code>docs/</code>, this page is the accurate one.</p>
-<p>See also: <a href="#limitations">Limitations</a> · <a href="#diagnostics">Diagnostics</a> ·
+<p>See also: <a href="#security">Safety rules</a> · <a href="#diagnostics">Diagnostics</a> ·
 <a href="#cli">CLI reference</a> · <a href="#examples">Examples</a></p>
 </footer>
 </main>
