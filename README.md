@@ -1,299 +1,406 @@
-# Kryo Language Support for Windsurf/Devin
+# Kryo
 
-Complete language support for the Kryo systems programming language in Windsurf/Devin IDE with advanced features optimized for AI-assisted development.
+**A systems programming language where the type system knows more than the type.**
 
-## Features
+Kryo tracks *how much* a value may hold, *where* it lives and *what state* it is in — so whole classes of
+bugs are rejected before the program runs: an index that walks off an array, a buffer pushed past its
+capacity, a file used after it was closed, a number that silently wraps.
 
-### Core Language Support
-- **Syntax Highlighting**: Enhanced syntax highlighting for all Kryo constructs
-- **100+ Code Snippets**: Comprehensive snippets for common Kryo patterns
-- **Language Configuration**: Advanced auto-closing, bracket matching, and indentation
-- **File Icon**: Custom icon for `.kyo` files with theme support
+One front end, two engines: a reference interpreter (`kryo run`) that executes the whole language, and a
+native backend (`kryo build`) that lowers it to LLVM IR and produces a real executable. A differential test
+suite requires both to print exactly the same output.
 
-### Advanced IDE Features
-- **IntelliSense**: Context-aware code completion for memory domains, capacity types, and resource types
-- **Diagnostics**: Real-time linting with smart error detection
-- **Code Formatting**: Multi-style formatting (standard, compact, expanded)
-- **Inlay Hints**: Type inference hints and parameter information
-- **Code Actions**: Quick fixes for common issues
-- **Go to Definition**: Navigation support (future LSP integration)
-- **Semantic Highlighting**: Enhanced semantic token support
+```kryo
+fn main() -> i32 {
+    let mut total: i32 = 0;
 
-### Build Integration
-- **Build Commands**: Build, run, check, format, and lint commands
-- **Terminal Integration**: Dedicated terminal for Kryo operations
-- **Problem Matching**: Automatic error parsing and display in Problems panel
-- **Keyboard Shortcuts**: Optimized shortcuts for common operations
+    for value in range(0, 4) {
+        total = total + value;
+    }
 
-### Windsurf/Devin Specific Features
-- **AI Context Awareness**: Enhanced context for AI code generation
-- **Smart Snippets**: Snippets optimized for AI-assisted development
-- **Documentation Integration**: Quick access to Kryo documentation
-- **Status Bar Integration**: Status bar item for quick access
-- **Theme Support**: Custom colors for memory domains and types
-
-## Installation
-
-### From Windsurf/Devin Marketplace (Coming Soon)
-
-1. Open Windsurf/Devin
-2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Kryo Language Support for Windsurf"
-4. Click Install
-
-### Manual Installation
-
-1. Clone this repository
-2. Open Windsurf/Devin
-3. Go to Extensions → Install from VSIX
-4. Select the `.vsix` file (build it first with `vsce package`)
-
-## Configuration
-
-The extension provides extensive configuration options:
-
-### Compiler Settings
-
-```json
-{
-  "kryo.compilerPath": "kryo",
-  "kryo.linting.enabled": true,
-  "kryo.formatting.enabled": true,
-  "kryo.formatting.style": "standard",
-  "kryo.maxProblems": 100,
-  "kryo.trace.server": "off"
+    println("total = {}", total);
+    return total;      // 6
 }
 ```
 
-### Advanced Settings
+---
 
-```json
-{
-  "kryo.autocomplete.enabled": true,
-  "kryo.semanticHighlighting.enabled": true,
-  "kryo.inlayHints.enabled": true
+## Why Kryo
+
+| Idea | What it means when you write code |
+|---|---|
+| **Capacity is part of the type** | `BoundedVec<i32, 4>` can never hold five elements; `Bounded<i32, 0, 100>` can never leave its range. A literal outside the range fails to compile, a computed value is checked when it is produced. |
+| **Memory domains are types** | `Stack<T>`, `Heap<T>`, `GPU<T>`, `Shared<T>`, `Persistent<T>`, `Distributed<T>`, `Transfer<T>` each carry a lifetime model. Moving data between them is explicit. |
+| **Resources are state machines** | `File<Open>` becomes `File<Closed>` when you close it. Reading a closed file, closing it twice, or forgetting to close it are compile-time errors. |
+| **Contracts live in the signature** | `requires` and `ensures` sit next to the parameters and run before and after the body. |
+| **Borrows end at their last use** | Non-lexical lifetimes: a reference freezes its owner only while it is still needed, so ordinary code compiles without lifetime annotations. |
+| **Concurrency is built in** | `Thread::spawn`, `Atomic<i32>`, `async fn` and `.await` are part of the language, with the handle tracked until it is joined. |
+| **No silent arithmetic** | `+ - * / %` are checked in both engines; overflow is an error, not a wrap. |
+| **Diagnostics that teach** | Every rejection carries a code, a span, a label under the offending text and usually a suggestion. |
+
+---
+
+## Quick start
+
+### Build the compiler
+
+```console
+$ cargo build --release --workspace
+$ ./target/release/kryo --help
+```
+
+> `--workspace` matters: the root package declares no targets, so a plain `cargo build --release` succeeds
+> without producing a binary.
+
+### Hello world
+
+```kryo
+// hello.kyo
+fn main() -> i32 {
+    println("Hello, Kryo!");
+    return 0;
 }
 ```
 
-### Settings Reference
+```console
+$ kryo run hello.kyo
+Hello, Kryo!
 
-- `kryo.compilerPath`: Path to the Kryo compiler executable (default: `kryo`)
-- `kryo.linting.enabled`: Enable/disable linting (default: `true`)
-- `kryo.formatting.enabled`: Enable/disable code formatting (default: `true`)
-- `kryo.formatting.style`: Formatting style - `standard`, `compact`, or `expanded` (default: `standard`)
-- `kryo.maxProblems`: Maximum number of problems to report (default: `100`)
-- `kryo.trace.server`: LSP server trace level - `off`, `messages`, or `verbose` (default: `off`)
-- `kryo.autocomplete.enabled`: Enable intelligent autocomplete (default: `true`)
-- `kryo.semanticHighlighting.enabled`: Enable semantic highlighting (default: `true`)
-- `kryo.inlayHints.enabled`: Enable inlay hints for type inference (default: `true`)
-
-## Commands
-
-The extension provides the following commands:
-
-### Build Commands
-- `Kryo: Build Current File` (Ctrl+Shift+B): Build the current Kryo file
-- `Kryo: Run Current File` (F5): Build and run the current Kryo file
-- `Kryo: Type Check Current File` (Ctrl+Shift+T): Type check without building
-
-### Code Quality Commands
-- `Kryo: Format Current File` (Shift+Alt+F): Format the current file
-- `Kryo: Lint Current File`: Run linter on the current file
-
-### Server Commands
-- `Kryo: Restart Language Server`: Restart the language server if needed
-
-### Documentation Commands
-- `Kryo: Show Documentation`: Open Kryo documentation in browser
-
-## Code Snippets
-
-The extension includes 100+ code snippets organized by category:
-
-### Basic Patterns
-- `main` - Create a main function
-- `fn` - Create a function
-- `let` - Create a let statement
-- `let_mut` - Create a mutable let statement
-- `if` - Create an if statement
-- `while` - Create a while loop
-- `for` - Create a for loop
-- `match` - Create a match statement
-
-### Memory Domain Patterns
-- `stack` - Create a stack-allocated variable
-- `heap` - Create a heap-allocated variable
-- `persistent` - Create a persistent variable
-- `gpu` - Create a GPU-allocated variable
-- `shared` - Create a shared memory variable
-- `distributed` - Create a distributed memory variable
-
-### Type Patterns
-- `array` - Create a fixed-size array
-- `bounded_vec` - Create a bounded vector
-- `bounded` - Create a bounded integer
-- `resource` - Create a resource
-
-### Advanced Patterns
-- `struct` - Create a struct
-- `enum` - Create an enum
-- `trait` - Create a trait
-- `impl` - Create an impl block
-- `unsafe` - Create an unsafe block
-- `contract` - Create a function with contracts
-
-### Smart Types
-- `box` - Create a Box type
-- `rc` - Create an Rc type
-- `arc` - Create an Arc type
-- `slice` - Create a slice type
-- `lifetime` - Create a lifetime annotation
-
-## AI-Assisted Development
-
-The extension is optimized for Windsurf/Devin's AI features:
-
-### Context Awareness
-- Enhanced syntax highlighting provides better context for AI
-- Smart snippets help AI generate idiomatic Kryo code
-- Memory domain awareness helps AI suggest appropriate memory management
-
-### Code Generation
-- Snippets are designed to work well with AI code completion
-- Type hints and inlay hints improve AI understanding
-- Documentation integration helps AI provide accurate suggestions
-
-### Error Recovery
-- Smart diagnostics help AI understand and fix errors
-- Code actions provide quick fixes that AI can suggest
-- Linting rules guide AI toward best practices
-
-## Keyboard Shortcuts
-
-- `Ctrl+Shift+B`: Build current file
-- `F5`: Run current file
-- `Ctrl+Shift+T`: Type check current file
-- `Shift+Alt+F`: Format current file
-
-## Color Themes
-
-The extension defines custom colors for different memory domains:
-
-- **Stack Memory**: Green (stack allocation)
-- **Heap Memory**: Blue (heap allocation)
-- **Persistent Memory**: Orange (persistent storage)
-- **GPU Memory**: Purple (GPU memory)
-
-These colors can be customized in your theme settings.
-
-## Development
-
-### Building the Extension
-
-```bash
-npm install
-npm run compile
+✓ Execution complete
+Result: 0
 ```
 
-### Packaging the Extension
+### Compile it to a native binary
 
-```bash
-npm install -g vsce
-vsce package
+```console
+$ kryo build hello.kyo
+$ ./hello
+Hello, Kryo!
 ```
 
-### Running in Development Mode
+The native backend needs `clang`. Kryo looks for it in the `KRYO_CLANG` environment variable, then on `PATH`,
+then in the usual LLVM install locations. `kryo run` never needs it.
 
-1. Press `F5` in Windsurf/Devin
-2. A new Windsurf/Devin window will open with the extension loaded
+---
 
-### Testing
+## A tour of the language
 
-The extension includes built-in testing capabilities:
+### Capacity types
 
-```bash
-npm test
+```kryo
+fn main() -> i32 {
+    let mut buffer: BoundedVec<i32, 4> = BoundedVec::new(4);
+    buffer = buffer.push(10);
+    buffer = buffer.push(20);
+
+    // A computed value is checked where it is created.
+    let temperature: Bounded<i32, 0, 100> = 42;
+
+    println("{} items, temperature {}", buffer.len(), temperature);
+    return 0;
+}
 ```
+
+### Memory domains
+
+```kryo
+fn main() -> i32 {
+    let counter = Heap::alloc(0);
+    counter.write(10);
+    counter.increment();
+    println("heap = {}", counter.get());
+
+    let staged = Transfer::new(7);
+    staged.write(8);
+    return staged.get();
+}
+```
+
+### Resource state machines
+
+```kryo
+fn main() -> i32 {
+    let file = File::open("data.bin");
+    let size = File::read(file);
+    let closed = File::close(file);
+    return size;
+}
+```
+
+Leaving the file open, reading after closing, or closing twice is rejected with `E0011`.
+
+### Contracts
+
+```kryo
+fn clamp(value: i32, low: i32, high: i32) -> i32
+    requires low <= high
+    ensures result >= low
+    ensures result <= high
+{
+    if value < low { return low; }
+    if value > high { return high; }
+    return value;
+}
+
+fn main() -> i32 {
+    return clamp(150, 0, 100);   // 100
+}
+```
+
+### Structs, methods and operator overloading
+
+```kryo
+struct Vec2 { x: i32, y: i32 }
+
+impl Vec2 {
+    fn length_sq(self) -> i32 { return self.x * self.x + self.y * self.y; }
+}
+
+impl Add for Vec2 {
+    fn add(self, other: Vec2) -> Vec2 {
+        return Vec2 { x: self.x + other.x, y: self.y + other.y };
+    }
+}
+
+impl PartialOrd for Vec2 {
+    fn lt(self, other: Vec2) -> bool { return self.length_sq() < other.length_sq(); }
+}
+
+fn main() -> i32 {
+    let a: Vec2 = Vec2 { x: 1, y: 2 };
+    let b: Vec2 = Vec2 { x: 3, y: 4 };
+    let sum: Vec2 = a + b;
+    if a < b { println("a is shorter"); }
+    return sum.length_sq();
+}
+```
+
+`Add`, `Sub`, `Mul`, `Div`, `Rem`, `Eq` and `PartialOrd` are overloadable. Only `lt` is required for
+ordering; `>`, `<=` and `>=` derive from it.
+
+### Enums and pattern matching
+
+```kryo
+enum Shape { Circle(i32), Square(i32) }
+
+fn area(shape: Shape) -> i32 {
+    match shape {
+        Shape::Circle(r) => return r * r * 3,
+        Shape::Square(side) => return side * side,
+    }
+}
+
+fn main() -> i32 {
+    return area(Shape::Circle(2)) + area(Shape::Square(6));   // 48
+}
+```
+
+### Threads, atomics and async
+
+```kryo
+fn bump() -> i32 {
+    let mut i: i32 = 0;
+    while i < 1000 { i = i + 1; }
+    return 0;
+}
+
+async fn slow() -> i32 {
+    Thread::sleep(100);
+    return 1;
+}
+
+fn main() -> i32 {
+    let a = Thread::spawn("bump");
+    let b = Thread::spawn("bump");
+    let x: i32 = Thread::join(a);
+    let y: i32 = Thread::join(b);
+
+    // Async tasks queue onto a worker pool and really overlap.
+    let p = slow();
+    let q = slow();
+    println("async = {}", p.await + q.await);
+
+    return x + y;
+}
+```
+
+Shared state goes through `Atomic<i32>`: `load`, `store`, `fetch_add`, `fetch_sub`, `swap`,
+`compare_exchange`. Ordinary variables are per-thread, so a data race has nowhere to hide.
+
+### Modules
+
+```kryo
+mod math {
+    pub fn double(n: i32) -> i32 { return n * 2; }
+    pub struct Point { pub x: i32, pub y: i32 }
+}
+
+fn main() -> i32 {
+    let p = math::Point { x: 3, y: 4 };
+    return math::double(p.x) + p.y;
+}
+```
+
+`mod name;` loads `name.kyo` from the same directory, so a program can be split across files. Visibility is
+enforced for functions, types and fields — including reads.
+
+---
+
+## Command line
+
+| Command | What it does |
+|---|---|
+| `kryo run <file>` | Compile in memory and execute |
+| `kryo check <file>` | Front end only: no execution, no artifacts |
+| `kryo build <file> [-o path]` | Emit LLVM IR, link an executable, run it |
+| `kryo build-opt <file> [-l 0..3]` | The same pipeline at a chosen optimisation level |
+| `kryo fmt <file>` | Canonical formatting, comments preserved |
+| `kryo docs <file> [-f md\|html]` | Reference generated from declarations and `///` comments |
+| `kryo lint <file>` | Unused variables, dead functions, style |
+| `kryo test [-t unit\|integration\|property\|all]` | Run the selected suites |
+| `kryo benchmark <file> [-w warmup] [-i iterations]` | Time a program |
+| `kryo explain <CODE>` | Long-form explanation of any diagnostic |
+| `kryo new <name>` / `kryo init` | Scaffold a package |
+| `kryo install` / `kryo update` | Manage package dependencies |
+| `kryo clean` | Remove build artifacts |
+| `kryo lsp` | Language server: completion, hover, definition, references, rename |
+
+Global flags: `--color auto\|always\|never` and `--message-format human\|short\|json`.
+
+Exit codes: `0` success · `1` a diagnostic was reported · `2` a file or I/O problem · `3` an internal error.
+
+---
+
+## Diagnostics
+
+```console
+error[E0004]: undefined variable `totl`
+ --> program.kyo:3:12
+  |
+3 |     return totl + 1;
+  |            ^^^^ not found in this scope
+  |
+help: declare the name with `let` before using it, or check its spelling
+suggestion: did you mean `total`?
+```
+
+| Code | Meaning |
+|---|---|
+| `E0001` | Lexical error |
+| `E0002` | Syntax error |
+| `E0003` | Type error |
+| `E0004` | Undefined or private name |
+| `E0005` | Borrow or ownership error |
+| `E0006` | Construct the native backend does not lower |
+| `E0007` | Package or toolchain problem |
+| `E0008` | Usage error |
+| `E0009` | Runtime error: bounds, overflow, assertion, panic |
+| `E0010` | Contract violation |
+| `E0011` | Resource state violation |
+| `E0012` | `unsafe` rule violation |
+| `E0013` | Formatting refused (the file was left untouched) |
+
+`kryo explain E0005` prints the long form of any code.
+
+---
+
+## Editor support
+
+Two extensions ship with the repository at version 1.2.0:
+
+```console
+$ code --install-extension kryo-vscode-extension\kryo-language-1.2.0.vsix
+$ windsurf --install-extension kryo-windsurf-extension\kryo-language-windsurf-1.2.0.vsix
+```
+
+Syntax highlighting, language configuration, snippets for every construct in this README, and commands for
+build, run, check, format, lint, restart server and documentation.
+
+---
+
+## Libraries
+
+Nine self-contained modules in `lib/`, each with a demo that fails loudly if a check does not hold:
+
+| Module | What it gives you |
+|---|---|
+| `bits.kyo` | Population count, leading and trailing zeros, rotate, byte swap, field extraction |
+| `bitmap.kyo` | Frame allocator over a `[u32; N]`: set, clear, test, first free |
+| `fixed.kyo` | Q16.16 fixed point: multiply, divide, saturate, convert — no FPU |
+| `mmio.kyo` | Register access with shift and mask, plus a PL011-style UART with FIFOs |
+| `ring.kyo` | Power-of-two byte ring buffer |
+| `sched.kyo` | Round-robin task table with tick accounting |
+| `text.kyo` | Allocation-free formatting: integers in any base, padding, hex dumps |
+| `tui.kyo` | Boxes, headings, progress bars and sparklines for a text console |
+| `vecmath.kyo` | Fixed-size vector math over `[i32; 3]` and `[i32; 4]`, integer sqrt, RGBA packing |
+
+Each library is a plain file; combine it with your program by concatenation (or load it with `mod`):
+
+```console
+$ Get-Content lib\bits.kyo, lib\tests\bits_demo.kyo | Set-Content both.kyo
+$ kryo run both.kyo
+```
+
+---
+
+## Repository layout
+
+```
+compiler/    lexer, parser, resolver, type checker, ownership, optimiser, interpreter,
+             LLVM backend, diagnostics, documentation generator, printer
+cli/         the `kryo` binary, language server, test runners
+lib/         standard-library modules and their demos
+examples/    runnable programs, verified by the test suite
+tests/       language, diagnostics, libraries, security and differential suites
+docs/        the full reference as a single HTML page
+```
+
+---
+
+## Testing
+
+```console
+$ cargo test --workspace
+```
+
+**647 tests**, none ignored. The suite covers the language surface feature by feature, the diagnostics
+renderer, every library with its demo, the CLI end to end, a differential harness that requires the
+interpreter and the native binary to print identical output, generated programs from a seeded PRNG, and a
+security suite in which every case is an attack that must be rejected.
+
+```console
+# benchmarks (writes BENCHMARKS.md)
+$ cargo test --release --test benchmarks_test -- --nocapture --test-threads=1
+```
+
+---
+
+## Documentation
+
+[`docs/index.html`](docs/index.html) is the complete reference: introduction, tutorial, syntax, operators,
+types, memory and safety, functions and generics, data structures, modules, built-in library, command line,
+diagnostics, testing, examples, libraries, internals, safety rules, project layout and an FAQ. It is
+self-contained — open it in a browser, no server and no network needed.
+
+Other material:
+
+| Path | Contents |
+|---|---|
+| [`docs/index.html`](docs/index.html) | Complete reference (authoritative) |
+| [`lib/`](lib) | Nine verified libraries with demos |
+| [`examples/`](examples) | Runnable example programs |
+| [`AUDIT_REPORT.md`](AUDIT_REPORT.md) | Source audit: defects, test suite, benchmarks |
+| [`BENCHMARKS.md`](BENCHMARKS.md) | Measured front-end and interpreter performance |
+
+---
 
 ## Requirements
 
-- Windsurf/Devin IDE or VS Code 1.80.0 or higher
-- Kryo compiler (for build/run functionality)
-- Node.js 18+ (for development)
+- Rust 1.70+ (tested with 1.98)
+- `clang` from LLVM for `kryo build` and `kryo build-opt` — not needed for `kryo run`
 
-## Troubleshooting
-
-### Language Server Issues
-If the language server fails to start:
-1. Run `Kryo: Restart Language Server` command
-2. Check the "Kryo Language Server" output channel
-3. Verify the compiler path in settings
-
-### Formatting Issues
-If formatting doesn't work as expected:
-1. Check the formatting style setting
-2. Try different formatting styles (standard, compact, expanded)
-3. Ensure the file is saved before formatting
-
-### Linting Issues
-If linting shows unexpected errors:
-1. Check that linting is enabled in settings
-2. Verify the Kryo compiler is installed
-3. Check the Problems panel for detailed error messages
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-### Development Guidelines
-- Follow the existing code style
-- Add tests for new features
-- Update documentation for changes
-- Test in both VS Code and Windsurf/Devin
+---
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues and feature requests, please use the [GitHub Issues](https://github.com/kryo-lang/kryo-windsurf/issues) page.
-
-## Kryo Language
-
-For more information about the Kryo language, visit:
-
-- [Kryo Language Specification](https://github.com/kryo-lang/kryo)
-- [Kryo Documentation](https://docs.kryo-lang.org)
-- [Kryo Tutorial](https://docs.kryo-lang.org/tutorial)
-- [Kryo Best Practices](https://docs.kryo-lang.org/best-practices)
-
-## Acknowledgments
-
-This extension is inspired by:
-- Rust Analyzer for advanced language features
-- Zig Language Support for simplicity
-- C/C++ extensions for systems programming features
-- Windsurf/Devin for AI-assisted development paradigms
-
-## Roadmap
-
-### Future Features
-- Full LSP server integration
-- Advanced semantic analysis
-- Go to definition and references
-- Code refactoring support
-- Integrated testing support
-- Debugging support
-- Performance profiling
-- Memory visualization
-- GPU kernel debugging
-- Distributed memory debugging
-
-### AI Enhancements
-- AI-powered code generation
-- Smart refactoring suggestions
-- Automated error fixing
-- Performance optimization suggestions
-- Memory usage analysis
-- Best practices enforcement
+MIT.
