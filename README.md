@@ -403,4 +403,4 @@ Other material:
 
 ## License
 
-MIT.
+Apache.
