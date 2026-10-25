@@ -403,4 +403,4 @@ Other material:
 
 ## License
 
-Apache.
+Apache 2.0.
