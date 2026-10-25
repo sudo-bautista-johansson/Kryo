@@ -88,10 +88,14 @@ pre code{background:none;border:0;padding:0;font-size:inherit;white-space:pre}
 pre .lang{
   position:absolute;top:.45rem;left:.8rem;font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;
   text-transform:uppercase;color:var(--fg-soft);
+  /* Never part of a copied selection. */
+  user-select:none;-webkit-user-select:none;-moz-user-select:none;
 }
 .copy{
   position:absolute;top:.35rem;right:.5rem;font:inherit;font-size:.72rem;padding:.2rem .5rem;
   border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg-soft);cursor:pointer;
+  /* Never part of a copied selection. */
+  user-select:none;-webkit-user-select:none;-moz-user-select:none;
 }
 .copy:hover{color:var(--accent);border-color:var(--accent)}
 .copy.done{color:var(--ok);border-color:var(--ok)}
@@ -262,8 +266,8 @@ in both engines.</p>
 <thead><tr><th>Requirement</th><th>Needed for</th><th>Notes</th></tr></thead>
 <tbody>
 <tr><td>Rust 1.70+ (tested with 1.98)</td><td>Building the compiler</td><td><code>rustup</code> or a working <code>cargo</code></td></tr>
-<tr><td>LLVM/clang at <code>D:\LLVM\bin\clang.exe</code></td><td><code>kryo build</code>, <code>kryo build-opt</code> only</td><td>The path is currently hardcoded; the interpreter does not need it</td></tr>
-<tr><td>Windows, Linux or macOS</td><td>Everything</td><td>Generated objects target <code>x86_64-pc-windows-msvc</code> or the freestanding <code>x86_64-pc-none-elf</code></td></tr>
+<tr><td><code>clang</code> from LLVM 15 or newer</td><td><code>kryo build</code>, <code>kryo build-opt</code> only</td><td>Kryo looks for it in this order: <code>KRYO_CLANG</code>, then <code>clang</code> on <code>PATH</code>, then the usual locations (<code>C:\Program Files\LLVM\bin</code>, <code>/usr/bin</code>, <code>/usr/local/bin</code>, Homebrew on Apple silicon). If none of them works, <code>kryo build</code> stops with <code>error[E0007]: no C compiler found for the native backend</code>. The interpreter never needs it.</td></tr>
+<tr><td>Windows, Linux or macOS</td><td>Everything</td><td>The native backend asks the local <code>clang</code> for its default target, so objects match the host</td></tr>
 </tbody>
 </table>
 
@@ -307,7 +311,7 @@ EOF
 <tbody>
 <tr><td><code>kryo: command not found</code></td><td>Not on <code>PATH</code></td><td>Call <code>target/release/kryo</code> directly, or copy it somewhere on <code>PATH</code></td></tr>
 <tr><td>Build “succeeds” but no binary appears</td><td>Missing <code>--workspace</code></td><td><code>cargo build --release --workspace</code></td></tr>
-<tr><td><code>Failed to run clang.exe</code></td><td>LLVM not at the hardcoded path</td><td>Use <code>kryo run</code>, or install LLVM at <code>D:\LLVM</code></td></tr>
+<tr><td><code>error[E0007]: no C compiler found for the native backend</code></td><td>No <code>clang</code> in any location Kryo checks</td><td>Install LLVM, put <code>clang</code> on <code>PATH</code>, or set <code>KRYO_CLANG</code> to the binary (for example <code>KRYO_CLANG=/opt/homebrew/opt/llvm/bin/clang</code>). <code>kryo run</code> works without it.</td></tr>
 <tr><td>Old binary behaves differently from a fresh build</td><td>Stale artifact</td><td><code>cargo build --release --workspace</code> before testing</td></tr>
 </tbody>
 </table>
@@ -319,7 +323,7 @@ EOF
 Every step is executable as written.</p>
 
 <h3>Step 1 — a program that returns a value</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let total: i32 = 40 + 2;
     println("total = {}", total);
     return total;
@@ -332,7 +336,7 @@ Result: 42</code></pre>
 <p><code>main</code> returns <code>i32</code>; the interpreter prints it after <code>Result:</code>.</p>
 
 <h3>Step 2 — a function</h3>
-<pre data-lang="kyro"><code>fn average(a: i32, b: i32) -&gt; i32 {
+<pre data-lang="kryo"><code>fn average(a: i32, b: i32) -&gt; i32 {
     return (a + b) / 2;
 }
 
@@ -344,7 +348,7 @@ fn main() -&gt; i32 {
 type. Calls are <code>name(arg, …)</code>.</p>
 
 <h3>Step 3 — a struct with a method</h3>
-<pre data-lang="kyro"><code>struct Counter {
+<pre data-lang="kryo"><code>struct Counter {
     value: i32,
 }
 
@@ -369,7 +373,7 @@ default field values.</p>
 </div>
 
 <h3>Step 4 — a collection</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let mut scores = Vec::new();
     scores.push(70);
     scores.push(95);
@@ -379,7 +383,7 @@ default field values.</p>
 }</code></pre>
 
 <h3>Step 5 — a contract</h3>
-<pre data-lang="kyro"><code>fn percent(part: i32, whole: i32) -&gt; i32
+<pre data-lang="kryo"><code>fn percent(part: i32, whole: i32) -&gt; i32
     requires whole &gt; 0
     ensures result &gt;= 0
 {
@@ -391,7 +395,23 @@ fn main() -&gt; i32 {
     return 0;
 }</code></pre>
 <p>Output: <code>75%</code>. Calling <code>percent(3, 0)</code> fails at runtime with
-<code>error[E0010]</code>.</p>
+<code>error[E0010]</code>, because <code>requires whole &gt; 0</code> is checked before the body runs.</p>
+<p>Both clauses are enforced, and they guard different mistakes. <code>requires</code> rejects a call that was
+never valid; <code>ensures</code> rejects a body that broke its promise. If the guard passes and the body still
+returns something it should not, the function is stopped <em>before</em> the value reaches the caller:</p>
+<pre data-lang="kryo"><code>fn ratio(value: i32) -&gt; i32
+    requires value &gt;= 0
+    ensures result &gt;= 0
+{
+    // The guard accepts this call, but the body returns a negative number.
+    return 0 - value;
+}
+
+fn main() -&gt; i32 {
+    return ratio(5);   // error[E0010]: the contract does not hold
+}</code></pre>
+<p>The bad value never escapes the function, so every caller can rely on the signature without reading the
+body.</p>
 
 <h3>Step 6 — check, then run</h3>
 <pre data-lang="shell"><code>kryo check main.kyo     # front end only: no execution, no artifacts
@@ -421,7 +441,7 @@ predictable.</p>
 
 <h3>Source files and comments</h3>
 <p>Kryo source files use the <code>.kyo</code> extension and are UTF-8. A byte-order mark is skipped.</p>
-<pre data-lang="kyro"><code>// A line comment.
+<pre data-lang="kryo"><code>// A line comment.
 
 /* A block comment. */
 
@@ -433,7 +453,7 @@ fn main() -&gt; i32 {
 <h3>Identifiers</h3>
 <p>Identifiers start with a letter or <code>_</code> and continue with letters, digits or <code>_</code>.
 Unicode letters are accepted.</p>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let total: i32 = 1;
     let _unused: i32 = 2;
     let nombre: i32 = 3;
@@ -472,7 +492,7 @@ specific positions, not keywords.</p>
 </table>
 <p>String escapes: <code>\n</code>, <code>\t</code>, <code>\r</code>, <code>\\</code>, <code>\"</code>,
 <code>\'</code>, <code>\0</code>.</p>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let tabbed: String = "a\tb";
     let quoted: String = "she said \"hi\"";
     println("{}|{}", tabbed, quoted);
@@ -480,7 +500,7 @@ specific positions, not keywords.</p>
 }</code></pre>
 
 <h3>Variables and mutability</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let fixed: i32 = 10;        // immutable
     let mut counter: i32 = 0;   // reassignable
     counter = counter + fixed;  // only `mut` bindings accept assignment
@@ -499,7 +519,7 @@ specific positions, not keywords.</p>
 </ul>
 
 <h3>Conditionals</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let n: i32 = 7;
     if n &gt; 10 {
         println("large");
@@ -519,7 +539,7 @@ specific positions, not keywords.</p>
 </div>
 
 <h3>Loops</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let mut i: i32 = 0;
     let mut total: i32 = 0;
     while i &lt; 5 {
@@ -545,7 +565,7 @@ specific positions, not keywords.</p>
 </div>
 
 <h3>Functions</h3>
-<pre data-lang="kyro"><code>fn add(a: i32, b: i32) -&gt; i32 {
+<pre data-lang="kryo"><code>fn add(a: i32, b: i32) -&gt; i32 {
     return a + b;
 }
 
@@ -559,7 +579,7 @@ fn main() -&gt; i32 {
 }</code></pre>
 
 <h3>Structs, enums, impls, traits</h3>
-<pre data-lang="kyro"><code>struct Point {
+<pre data-lang="kryo"><code>struct Point {
     x: i32,
     y: i32,
 }
@@ -589,7 +609,7 @@ fn main() -&gt; i32 {
 }</code></pre>
 
 <h3>Pattern matching</h3>
-<pre data-lang="kyro"><code>fn classify(n: i32) -&gt; i32 {
+<pre data-lang="kryo"><code>fn classify(n: i32) -&gt; i32 {
     match n {
         0 =&gt; return 100,
         x =&gt; return x * 10,
@@ -607,7 +627,7 @@ fn main() -&gt; i32 {
 <code>Option</code>/<code>Result</code>, and optional guards (<code>pattern if condition =&gt; …</code>).</p>
 
 <h3>Unsafe blocks and FFI</h3>
-<pre data-lang="kyro"><code>extern "C" {
+<pre data-lang="kryo"><code>extern "C" {
     fn puts(message: *const u8) -&gt; i32;
 }
 
@@ -622,7 +642,7 @@ fn main() -&gt; i32 {
 declared return type.</p>
 
 <h3>Attributes</h3>
-<pre data-lang="kyro"><code>#[repr(C)]
+<pre data-lang="kryo"><code>#[repr(C)]
 struct Packet {
     id: u32,
     size: u16,
@@ -659,7 +679,7 @@ operator.</p>
 </tbody>
 </table>
 
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     // * binds tighter than +
     println("{}", 1 + 2 * 3);        // 7
     println("{}", (1 + 2) * 3);      // 9
@@ -690,7 +710,7 @@ error (<code>E0009</code>) — not undefined behaviour.</li>
 </ul>
 
 <h3>Assignment</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let mut x: i32 = 1;
     x = x + 41;          // plain assignment: supported
     let mut data: [i32; 2] = [1, 2];
@@ -744,7 +764,7 @@ interpreter stores integers as 64-bit values and prints them without a suffix.</
 </table>
 
 <h3>Capacity-aware types</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     // The range is part of the type; a literal outside [0, 100] is a compile error.
     let percent: Bounded&lt;i32, 0, 100&gt; = 90;
 
@@ -787,7 +807,7 @@ interpreter stores integers as 64-bit values and prints them without a suffix.</
 <h3>Resource types</h3>
 <p>A resource carries a state in its type: <code>File&lt;Open&gt;</code>, <code>File&lt;Closed&gt;</code>,
 <code>Mutex&lt;Locked&gt;</code>, <code>Socket&lt;Connected&gt;</code>.</p>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let f = File::open("data.bin");   // File&lt;Open&gt;
     let d = File::read(f);            // i32; f is still Open
     let c = File::close(f);           // File&lt;Closed&gt;
@@ -796,7 +816,7 @@ interpreter stores integers as 64-bit values and prints them without a suffix.</
 <p>Reading <code>c</code> afterwards is <code>E0011</code>, and closing it twice is too.</p>
 
 <h3>Type inference and conversion</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let inferred = 7;             // i32
     let f: f64 = inferred as f64; // explicit conversion
     let back: i32 = f as i32;     // truncates toward zero
@@ -828,7 +848,7 @@ arithmetic failure modes, resource states, and a move checker. It does not attem
 analysis.</p>
 
 <h3>Where a value lives is in its type</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let value: i32 = 10;
 
     let on_stack = Stack::alloc(value);   // transparent: on_stack is an i32
@@ -865,7 +885,7 @@ analysis.</p>
 </table>
 
 <h3>Persistence</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let counter = Persistent::map("counter.txt", 41);
     counter.write(counter.get() + 1);
     println("counter = {}", counter.get());   // 42, and "42" is on disk
@@ -912,7 +932,7 @@ bounds checks above.</p>
 <h2>9. Functions and generics</h2>
 
 <h3>Declaration and calls</h3>
-<pre data-lang="kyro"><code>fn add(a: i32, b: i32) -&gt; i32 {
+<pre data-lang="kryo"><code>fn add(a: i32, b: i32) -&gt; i32 {
     return a + b;
 }
 
@@ -929,7 +949,7 @@ fn main() -&gt; i32 {
 overloading.</p>
 
 <h3>Recursion</h3>
-<pre data-lang="kyro"><code>fn fib(n: i32) -&gt; i32 {
+<pre data-lang="kryo"><code>fn fib(n: i32) -&gt; i32 {
     if n &lt; 2 {
         return n;
     }
@@ -944,7 +964,7 @@ calls works before the host stack is exhausted. Treat that as an implementation 
 guarantee.</p>
 
 <h3>Generics</h3>
-<pre data-lang="kyro"><code>fn identity&lt;T&gt;(value: T) -&gt; T {
+<pre data-lang="kryo"><code>fn identity&lt;T&gt;(value: T) -&gt; T {
     return value;
 }
 
@@ -970,7 +990,7 @@ fn main() -&gt; i32 {
 violations are reported as <code>E0003</code>. Monomorphisation is performed during type checking.</p>
 
 <h3>Traits</h3>
-<pre data-lang="kyro"><code>trait Describable {
+<pre data-lang="kryo"><code>trait Describable {
     fn describe(self) -&gt; i32;
 }
 
@@ -992,7 +1012,7 @@ fn main() -&gt; i32 {
 that type (<code>impl Doubler for i32 { fn doubled(self) -&gt; i32 { … } }</code>). Trait objects work: a <code>&amp;dyn Trait</code> parameter accepts a reference to any implementing type and dispatches on the runtime type.</p>
 
 <h3>Contracts</h3>
-<pre data-lang="kyro"><code>fn clamp_value(value: i32, low: i32, high: i32) -&gt; i32
+<pre data-lang="kryo"><code>fn clamp_value(value: i32, low: i32, high: i32) -&gt; i32
     requires low &lt;= high
     ensures result &gt;= low
     ensures result &lt;= high
@@ -1018,7 +1038,7 @@ fn main() -&gt; i32 {
 </table>
 
 <h3>Async functions</h3>
-<pre data-lang="kyro"><code>async fn compute() -&gt; i32 {
+<pre data-lang="kryo"><code>async fn compute() -&gt; i32 {
     return 41;
 }
 
@@ -1035,7 +1055,7 @@ the future is eager.</p>
 <h2>10. Data structures</h2>
 
 <h3>Arrays</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let mut data: [i32; 4] = [10, 20, 30, 40];
     data[1] = 21;
     let filled: [i32; 3] = [7; 3];   // [7, 7, 7]
@@ -1044,7 +1064,7 @@ the future is eager.</p>
 <p>Fixed size is part of the type. Constant out-of-range indices are rejected by the type checker.</p>
 
 <h3>Tuples</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let pair = (40, 2);
     match pair {
         (a, b) =&gt; return a + b,
@@ -1053,7 +1073,7 @@ the future is eager.</p>
 <p>Tuples are constructed, destructured, indexed with <code>t.0</code> / <code>t.1</code>, and compared with <code>==</code>.</p>
 
 <h3>Vectors</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let mut v = Vec::new();
     v.push(1);
     v.push(2);
@@ -1065,7 +1085,7 @@ the future is eager.</p>
 }</code></pre>
 
 <h3>Bounded vectors</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let mut buffer: BoundedVec&lt;i32, 4&gt; = BoundedVec::new(4);
     buffer = buffer.push(1);
     buffer = buffer.push(2);
@@ -1084,7 +1104,7 @@ the future is eager.</p>
 </table>
 
 <h3>Maps</h3>
-<pre data-lang="kyro"><code>fn main() -&gt; i32 {
+<pre data-lang="kryo"><code>fn main() -&gt; i32 {
     let m = HashMap::new();
     m.insert("a", 1);
     m.insert("b", 2);
@@ -1100,7 +1120,7 @@ the future is eager.</p>
 <code>Option</code>. <code>remove(key)</code> returns the map without that key.</p>
 
 <h3>Structs</h3>
-<pre data-lang="kyro"><code>struct Config {
+<pre data-lang="kryo"><code>struct Config {
     retries: i32,
     verbose: bool,
 }
@@ -1117,7 +1137,7 @@ fn main() -&gt; i32 {
 are no constructors beyond associated functions in <code>impl</code>.</p>
 
 <h3>Enums and pattern matching</h3>
-<pre data-lang="kyro"><code>enum Status {
+<pre data-lang="kryo"><code>enum Status {
     Idle,
     Running,
     Failed,
@@ -1140,7 +1160,7 @@ A payload received through a parameter can be matched and used directly; the bin
 
 <section id="modules">
 <h2>11. Modules</h2>
-<pre data-lang="kyro"><code>mod geometry {
+<pre data-lang="kryo"><code>mod geometry {
     pub fn area(width: i32, height: i32) -&gt; i32 {
         return width * height;
     }
@@ -1640,7 +1660,7 @@ example was executed against the current build. Where behaviour differs from the
     var code = pre.querySelector("code");
     var raw = code ? code.textContent : "";
     try {
-      if (lang === "kyro") code.innerHTML = highlightKryo(raw);
+      if (lang === "kryo") code.innerHTML = highlightKryo(raw);
       else code.innerHTML = esc(raw);
     } catch (e) {
       if (code) code.textContent = raw; /* never leave the block unreadable */
